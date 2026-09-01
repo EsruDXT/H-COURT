@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\View\View;
+
 class LandingController extends Controller
 {
-    public function index()
+    /**
+     * Tampilkan halaman utama (landing page) H-COURT.
+     */
+    public function index(): View
     {
-        // TODO: nanti ganti dengan query asli ke database, contoh:
-        // $stats = [
-        //     ['value' => Court::count(), 'label' => 'Lapangan terdaftar'],
-        //     ['value' => Schedule::whereDate('date', today())->available()->count(), 'label' => 'Slot tersedia hari ini'],
-        //     ...
-        // ];
-        // $lapangan = Court::with('schedules')->get();
+        // TODO: ganti query ini dengan data asli dari model Lapangan / Reservasi
+        // begitu tabelnya siap. Struktur array sengaja dibuat sama seperti
+        // yang dipakai di view supaya tinggal disambungkan ke Eloquent.
 
         $stats = [
             ['value' => '3', 'label' => 'Lapangan terdaftar'],
@@ -21,68 +22,60 @@ class LandingController extends Controller
             ['value' => '0', 'label' => 'Jadwal bentrok'],
         ];
 
-        // Semua gambar sementara pakai 1 file placeholder yang sama:
-        // public/images/court-placeholder.jpg
-        // Nanti kalau mau ganti foto asli, tinggal timpa/replace file ini
-        // dengan foto beneran (nama file boleh sama atau beda, tinggal
-        // sesuaikan path di bawah).
-        $placeholder = asset('images/court-placeholder.jpg');
-
-        $lapangan = [
+        $lapangans = [
             [
-                'nama' => 'Lapangan Futsal',
-                'tipe' => 'Outdoor - sintesis',
-                'gambar' => $placeholder,
-                'slot' => [
-                    ['jam' => '14:00', 'terisi' => true],
-                    ['jam' => '15:00', 'terisi' => false],
-                    ['jam' => '16:00', 'terisi' => false],
-                    ['jam' => '17:00', 'terisi' => true],
+                'slug'   => 'futsal',
+                'nama'   => 'Lapangan Futsal',
+                'lokasi' => 'Outdoor - sintesis',
+                'gambar' => asset('images/courts/futsal.jpg'),
+                'slots'  => [
+                    ['jam' => '14:00', 'tersedia' => true],
+                    ['jam' => '15:00', 'tersedia' => true],
+                    ['jam' => '16:00', 'tersedia' => true],
+                    ['jam' => '15:00', 'tersedia' => false],
                 ],
             ],
             [
-                'nama' => 'Lapangan Basket',
-                'tipe' => 'Indoor - gedung olahraga',
-                'gambar' => $placeholder,
-                'slot' => [
-                    ['jam' => '14:00', 'terisi' => true],
-                    ['jam' => '15:00', 'terisi' => false],
-                    ['jam' => '16:00', 'terisi' => true],
-                    ['jam' => '17:00', 'terisi' => false],
+                'slug'   => 'basket',
+                'nama'   => 'Lapangan Basket',
+                'lokasi' => 'Indoor - gedung olahraga',
+                'gambar' => asset('images/courts/basket.jpg'),
+                'slots'  => [
+                    ['jam' => '14:00', 'tersedia' => false],
+                    ['jam' => '15:00', 'tersedia' => true],
+                    ['jam' => '16:00', 'tersedia' => false],
+                    ['jam' => '17:00', 'tersedia' => true],
                 ],
             ],
             [
-                'nama' => 'Lapangan Badminton',
-                'tipe' => 'Indoor - gedung olahraga',
-                'gambar' => $placeholder,
-                'slot' => [
-                    ['jam' => '14:00', 'terisi' => true],
-                    ['jam' => '15:00', 'terisi' => false],
-                    ['jam' => '16:00', 'terisi' => true],
-                    ['jam' => '17:00', 'terisi' => false],
+                'slug'   => 'badminton',
+                'nama'   => 'Lapangan Badminton',
+                'lokasi' => 'Indoor - gedung olahraga',
+                'gambar' => asset('images/courts/badminton.jpg'),
+                'slots'  => [
+                    ['jam' => '14:00', 'tersedia' => false],
+                    ['jam' => '15:00', 'tersedia' => true],
+                    ['jam' => '16:00', 'tersedia' => false],
+                    ['jam' => '17:00', 'tersedia' => true],
                 ],
             ],
         ];
 
-        // TODO: sesuaikan teks ini dengan poin masalah asli dari sekolah kamu
         $alasan = [
             [
-                'judul' => 'Catatan manual, mudah hilang',
-                'deskripsi' => 'Buku peminjaman rusak, hilang, atau lupa dibawa petugas. H-COURT menyimpan setiap reservasi dalam satu sistem terpusat.',
+                'title' => 'Catatan manual, mudah hilang',
+                'desc'  => 'Buku peminjaman rusak, hilang, atau lupa dibawa petugas. H-COURT menyimpan setiap reservasi dalam satu sistem terpusat.',
             ],
             [
-                'judul' => 'Jadwal tidak terlihat siapa pun',
-                'deskripsi' => 'Siswa harus datang langsung untuk tahu jadwal kosong. Sekarang ketersediaan bisa dicek kapan saja, dari mana saja.',
+                'title' => 'Jadwal tidak terlihat siapa pun',
+                'desc'  => 'Siswa harus datang langsung untuk tahu jadwal kosong. Sekarang ketersediaan bisa dicek kapan saja, dari mana saja.',
             ],
             [
-                'judul' => 'Reservasi sering bentrok',
-                'deskripsi' => 'Dua kelompok datang di jam yang sama. Sistem menolak otomatis slot yang sudah terisi sebelum reservasi diajukan.',
+                'title' => 'Reservasi sering bentrok',
+                'desc'  => 'Dua kelompok datang di jam yang sama. Sistem menolak otomatis slot yang sudah terisi sebelum reservasi diajukan.',
             ],
         ];
 
-        // Foto suasana juga pakai placeholder yang sama biar cuma 1 file yang perlu diganti
-        $fotoSuasana = $placeholder;
-
-        return view('landing.index', compact('stats', 'lapangan', 'alasan', 'fotoSuasana'));
+        return view('landing.index', compact('stats', 'lapangans', 'alasan'));
     }
 }
