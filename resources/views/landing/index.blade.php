@@ -21,7 +21,7 @@
             </p>
 
             <div class="flex flex-wrap gap-4 mt-8">
-                <a href="{{ Route::has('reservasi.create') ? route('reservasi.create') : route('login') }}"
+                <a href="{{ Route::has('reservation.create') ? route('reservation.create') : route('login') }}"
                    class="bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3.5 rounded-lg transition-colors">
                     Reservasi Lapangan
                 </a>

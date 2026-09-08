@@ -54,11 +54,11 @@
 
         <p class="text-center text-sm text-gray-500">
           Belum punya akun?
-          <a href="#" class="text-[#A9754A] font-medium underline">Daftar di sini</a>
+          <a href="/register" class="text-[#A9754A] font-medium underline">Daftar di sini</a>
         </p>
       </form>
     </div>
   </div>
- <script src="{{ asset('js/login.js') }}"></script>
+
 </body>
 </html>

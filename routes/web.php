@@ -29,13 +29,14 @@ Route::get('/reservation/create', [ReservationController::class, 'create'])->nam
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 
 
-Route::get('/register', [AuthController::class, 'registerView']);
-
-Route::post('/register', [AuthController::class, 'register']);
-
-Route::get('/login', [AuthController::class, 'loginView']);
-
+// Login
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::get('/forgot-password', [AuthController::class, 'ForgotPasswordview']);
+// Register
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'register']);
+
+// Lupa kata sandi
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
 
