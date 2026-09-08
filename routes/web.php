@@ -36,3 +36,16 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.attempt');
 Route::post('/keluar', [AuthController::class, 'logout'])->name('logout');
+Route::get('/', function () {
+    return view('welcome');
+});
+
+use App\Http\Controllers\AuthController;
+
+Route::get('/register', [AuthController::class, 'registerView']);
+
+Route::post('/register', [AuthController::class, 'register']);
+
+Route::get('/login', [AuthController::class, 'loginView']);
+
+Route::post('/login', [AuthController::class, 'login']);
