@@ -6,14 +6,9 @@ use Illuminate\View\View;
 
 class LandingController extends Controller
 {
-    /**
-     * Tampilkan halaman utama (landing page) H-COURT.
-     */
+
     public function index(): View
     {
-        // TODO: ganti query ini dengan data asli dari model Lapangan / Reservasi
-        // begitu tabelnya siap. Struktur array sengaja dibuat sama seperti
-        // yang dipakai di view supaya tinggal disambungkan ke Eloquent.
 
         $stats = [
             ['value' => '3', 'label' => 'Lapangan terdaftar'],

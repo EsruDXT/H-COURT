@@ -13,20 +13,20 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 
-Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
-Route::get('/jadwal/{lapangan}', [JadwalController::class, 'show'])->name('jadwal.show');
+Route::get('/schedule', [JadwalController::class, 'index'])->name('schedule.index');
+Route::get('/schedule/{court}', [JadwalController::class, 'show'])->name('schedule.show');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/reservasi', [ReservasiController::class, 'index'])->name('reservasi.index');
-    Route::get('/reservasi/buat', [ReservasiController::class, 'create'])->name('reservasi.create');
-    Route::post('/reservasi', [ReservasiController::class, 'store'])->name('reservasi.store');
+    Route::get('/reservation', [ReservasiController::class, 'index'])->name('reservation.index');
+    Route::get('/reservation/create', [ReservasiController::class, 'create'])->name('reservation.create');
+    Route::post('/reservation', [ReservasiController::class, 'store'])->name('reservation.store');
 });
 
 Route::middleware('guest')->group(function () {
-    Route::get('/masuk', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/masuk', [AuthController::class, 'login'])->name('login.attempt');
-    Route::get('/daftar', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/daftar', [AuthController::class, 'register'])->name('register.attempt');
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->name('register.attempt');
 });
 
 Route::post('/keluar', [AuthController::class, 'logout'])
@@ -34,13 +34,3 @@ Route::post('/keluar', [AuthController::class, 'logout'])
     ->name('logout');
 
 
-Route::prefix('admin')
-    ->name('admin.')
-    ->middleware(['auth', 'can:admin'])
-    ->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-
-        Route::resource('lapangan', CourtController::class)->except('show');
-        Route::resource('jadwal', AdminJadwalController::class)->except('show');
-        Route::resource('reservasi', AdminReservasiController::class)->only(['index', 'show', 'update']);
-    });

@@ -6,7 +6,6 @@
 
     <div class="max-w-7xl mx-auto px-6">
 
-        {{-- ============ HERO ============ --}}
         <section class="mt-6 bg-navy rounded-3xl px-8 py-16 md:px-16 md:py-20 relative overflow-hidden">
             <p class="text-brand-light font-semibold tracking-wide text-sm mb-4">
                 Reservasi Lapangan Sekolah
@@ -33,8 +32,7 @@
             </div>
         </section>
 
-        {{-- ============ STATS ============ --}}
-        <section class="-mt-8 relative z-10 px-4 md:px-8">
+        <section class="-mt--6 relative z-10 px-4 md:px-8">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 @foreach ($stats as $stat)
                     <div class="bg-white rounded-2xl border border-black/5 shadow-sm px-6 py-6 text-center md:text-left">
@@ -45,7 +43,6 @@
             </div>
         </section>
 
-        {{-- ============ PILIH LAPANGAN ============ --}}
         <section class="mt-20">
             <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
@@ -92,7 +89,6 @@
             </div>
         </section>
 
-        {{-- ============ KENAPA H-COURT ============ --}}
         <section class="mt-24">
             <p class="text-brand font-semibold tracking-wide text-sm mb-2">Kenapa H-COURT</p>
             <h2 class="font-serif font-bold text-3xl md:text-4xl text-ink mb-8">Dibuat untuk masalah nyata</h2>
@@ -116,7 +112,6 @@
             </div>
         </section>
 
-        {{-- ============ CTA ============ --}}
         <section class="mt-16 mb-20 bg-navy rounded-3xl px-8 py-8 md:px-12 md:py-10 flex flex-col md:flex-row items-center justify-between gap-6">
             <h3 class="text-white font-serif font-semibold text-xl md:text-2xl text-center md:text-left">
                 Siap reservasi lapanganmu untuk<br class="hidden md:block"> latihan minggu ini?
