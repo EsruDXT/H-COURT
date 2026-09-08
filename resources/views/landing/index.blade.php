@@ -25,7 +25,7 @@
                    class="bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3.5 rounded-lg transition-colors">
                     Reservasi Lapangan
                 </a>
-                <a href="{{ route('jadwal.index') }}"
+                <a href="{{ route('schedule.index') }}"
                    class="border border-white/70 text-white font-semibold text-sm px-7 py-3.5 rounded-lg hover:bg-white/10 transition-colors">
                     Cek jadwal lapangan
                 </a>
@@ -77,7 +77,7 @@
                                 @endforeach
                             </div>
 
-                            <a href="{{ route('jadwal.show', $lapangan['slug']) }}"
+                            <a href="{{ route('schedule.show', $lapangan['slug']) }}"
                                class="block text-center border border-ink/80 text-ink font-medium text-sm mt-5 py-3 rounded-lg hover:bg-ink hover:text-white transition-colors">
                                 Lihat jadwal lengkap
                             </a>
@@ -116,7 +116,7 @@
             <h3 class="text-white font-serif font-semibold text-xl md:text-2xl text-center md:text-left">
                 Siap reservasi lapanganmu untuk<br class="hidden md:block"> latihan minggu ini?
             </h3>
-            <a href="{{ Route::has('reservasi.create') ? route('reservasi.create') : route('login') }}"
+            <a href="{{ Route::has('reservation.create') ? route('reservation.create') : route('login') }}"
                class="shrink-0 bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-8 py-3.5 rounded-lg transition-colors">
                 Mulai Reservasi
             </a>

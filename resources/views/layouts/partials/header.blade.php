@@ -14,8 +14,8 @@
             @php
                 $navLinks = [
                     ['label' => 'Beranda', 'route' => 'landing'],
-                    ['label' => 'Jadwal Lapangan', 'route' => 'jadwal.index'],
-                    ['label' => 'Reservasi', 'route' => 'reservasi.index'],
+                    ['label' => 'Jadwal Lapangan', 'route' => 'schedule.index'],
+                    ['label' => 'Reservasi', 'route' => 'reservation.index'],
                 ];
             @endphp
 
