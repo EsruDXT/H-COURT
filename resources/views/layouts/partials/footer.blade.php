@@ -10,7 +10,7 @@
             <span class="text-sm text-gray-500">© {{ date('Y') }} H-COURT. Sistem reservasi lapangan sekolah.</span>
         </div>
         <div class="flex items-center gap-6 text-sm text-gray-500">
-            <a href="{{ route('jadwal.index') }}" class="hover:text-ink">Jadwal Lapangan</a>
+            <a href="{{ route('schedule.index') }}" class="hover:text-ink">Jadwal Lapangan</a>
             <a href="{{ Route::has('reservasi.index') ? route('reservasi.index') : route('login') }}" class="hover:text-ink">Reservasi</a>
             <a href="{{ route('login') }}" class="hover:text-ink">Masuk</a>
         </div>
