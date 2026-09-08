@@ -15,3 +15,6 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::get('/login', [AuthController::class, 'loginView']);
 
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::get('/forgot-password', [AuthController::class, 'ForgotPasswordview']);
+
