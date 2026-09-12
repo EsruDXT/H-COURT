@@ -121,28 +121,6 @@ npm run dev
 
 ---
 
-## 📁 Project Structure Overview
-
-```text
-h-court/
-├── app/
-│   ├── Http/Controllers/     # Application logic (Booking, Court, Auth controllers)
-│   └── Models/               # Eloquent ORM Models (User, Court, Booking, etc.)
-├── database/
-│   ├── migrations/           # Database structure definitions
-│   └── seeders/              # Initial sample data seeders
-├── public/                   # Entry point (index.php) and compiled assets
-├── resources/
-│   ├── css/                  # Custom CSS & Tailwind setup
-│   ├── js/                   # Frontend JavaScript files
-│   └── views/                # Blade templating views
-├── routes/
-│   └── web.php               # Application web routes
-└── .env.example              # Sample environment configuration file
-```
-
----
-
 ## 👥 Development Team (Group 3)
 
 | Name | Role |
