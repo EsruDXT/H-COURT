@@ -17,7 +17,7 @@ class LandingController extends Controller
             ['value' => '0', 'label' => 'Jadwal bentrok'],
         ];
 
-        $lapangans = [
+        $courts = [
             [
                 'slug'   => 'futsal',
                 'nama'   => 'Lapangan Futsal',
@@ -56,7 +56,7 @@ class LandingController extends Controller
             ],
         ];
 
-        $alasan = [
+        $reason = [
             [
                 'title' => 'Catatan manual, mudah hilang',
                 'desc'  => 'Buku peminjaman rusak, hilang, atau lupa dibawa petugas. H-COURT menyimpan setiap reservasi dalam satu sistem terpusat.',
@@ -71,6 +71,6 @@ class LandingController extends Controller
             ],
         ];
 
-        return view('landing.index', compact('stats', 'lapangans', 'alasan'));
+        return view('landing.index', compact('stats', 'courts', 'reason'));
     }
 }

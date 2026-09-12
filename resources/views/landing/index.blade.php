@@ -21,7 +21,7 @@
             </p>
 
             <div class="flex flex-wrap gap-4 mt-8">
-                <a href="{{ Route::has('reservasi.create') ? route('reservasi.create') : route('login') }}"
+                <a href="{{ Route::has('reservation.create') ? route('reservation.create') : route('login') }}"
                    class="bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3.5 rounded-lg transition-colors">
                     Reservasi Lapangan
                 </a>
@@ -55,18 +55,18 @@
             </div>
 
             <div class="grid md:grid-cols-3 gap-6 mt-8">
-                @forelse ($lapangans as $lapangan)
+                @forelse ($courts as $court)
                     <div class="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-                        <img src="{{ $lapangan['gambar'] }}"
-                             alt="{{ $lapangan['nama'] }}"
+                        <img src="{{ $court['gambar'] }}"
+                             alt="{{ $court['nama'] }}"
                              class="w-full h-44 object-cover">
 
                         <div class="p-5">
-                            <h3 class="font-semibold text-lg text-ink">{{ $lapangan['nama'] }}</h3>
-                            <p class="text-sm text-gray-500 mt-0.5">{{ $lapangan['lokasi'] }}</p>
+                            <h3 class="font-semibold text-lg text-ink">{{ $court['nama'] }}</h3>
+                            <p class="text-sm text-gray-500 mt-0.5">{{ $court['lokasi'] }}</p>
 
                             <div class="flex flex-wrap gap-2 mt-4">
-                                @foreach ($lapangan['slots'] as $slot)
+                                @foreach ($court['slots'] as $slot)
                                     <span @class([
                                             'px-3 py-1.5 rounded-lg text-xs font-medium border',
                                             'border-gray-300 text-gray-700' => $slot['tersedia'],
@@ -77,7 +77,7 @@
                                 @endforeach
                             </div>
 
-                            <a href="{{ route('schedule.show', $lapangan['slug']) }}"
+                            <a href="{{ route('schedule.show', $court['slug']) }}"
                                class="block text-center border border-ink/80 text-ink font-medium text-sm mt-5 py-3 rounded-lg hover:bg-ink hover:text-white transition-colors">
                                 Lihat jadwal lengkap
                             </a>
@@ -101,7 +101,7 @@
                 </div>
 
                 <div class="bg-white rounded-2xl border border-black/5 shadow-sm divide-y divide-gray-100">
-                    @foreach ($alasan as $item)
+                    @foreach ($reason as $item)
                         <div class="p-6 md:p-7">
                             <p class="text-brand font-semibold text-sm mb-2">Sebelumnya</p>
                             <h3 class="font-semibold text-lg text-ink mb-2">{{ $item['title'] }}</h3>

@@ -28,24 +28,15 @@ Route::get('/reservation', [ReservationController::class, 'index'])->name('reser
 Route::get('/reservation/create', [ReservationController::class, 'create'])->name('reservation.create');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 
-// -----------------------------------------------------------------
-// Auth
-// -----------------------------------------------------------------
+
+// Login
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+Route::post('/login', [AuthController::class, 'login']);
+
+// Register
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register'])->name('register.attempt');
-Route::post('/keluar', [AuthController::class, 'logout'])->name('logout');
-Route::get('/', function () {
-    return view('welcome');
-});
-
-use App\Http\Controllers\AuthController;
-
-Route::get('/register', [AuthController::class, 'registerView']);
-
 Route::post('/register', [AuthController::class, 'register']);
 
-Route::get('/login', [AuthController::class, 'loginView']);
+// Lupa kata sandi
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
 
-Route::post('/login', [AuthController::class, 'login']);
