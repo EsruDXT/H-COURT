@@ -21,21 +21,9 @@
 <body class="bg-[#F4F1EA] min-h-screen text-gray-800">
 
 <div class="max-w-6xl mx-auto px-6 py-10">
-
+  
   <!-- Header -->
-  <header class="flex flex-wrap items-center justify-between gap-4 mb-12">
-    <div>
-      <h1 class="font-serif text-2xl font-bold text-navy leading-none">H-COURT</h1>
-      <p class="text-[11px] tracking-[0.2em] text-gray-500 mt-1">RESERVASI LAPANGAN SEKOLAH</p>
-    </div>
-
-    <nav class="flex items-center bg-white rounded-full p-1 border border-stone-200">
-      <span class="px-6 py-2.5 rounded-full bg-brand text-white font-semibold text-sm">Dashboard</span>
-      <a href="{{ route('admin.courts') }}" class="px-6 py-2.5 rounded-full text-gray-500 font-semibold text-sm hover:text-gray-700">Kelola Lapangan</a>
-    </nav>
-
-    <button class="px-7 py-3 rounded-full bg-navy text-white font-semibold text-sm">Keluar</button>
-  </header>
+  @include('layouts.partials.admin-header')
 
   <!-- Judul -->
   <section class="mb-8">

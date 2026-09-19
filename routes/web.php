@@ -31,6 +31,7 @@ Route::post('/reservation', [ReservationController::class, 'store'])->name('rese
 // Login
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
+route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Register
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
