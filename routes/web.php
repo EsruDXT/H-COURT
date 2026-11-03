@@ -28,15 +28,19 @@ Route::get('/reservation', [ReservationController::class, 'index'])->name('reser
 Route::get('/reservation/create', [ReservationController::class, 'create'])->name('reservation.create');
 Route::post('/reservation', [ReservationController::class, 'store'])->name('reservation.store');
 
-
 // Login
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
+route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Register
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
 
-// Lupa kata sandi
+// Lupa kata sandi (Planning)
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+
+// Admin
+Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+Route::get('/admin/courts', [CourtController::class, 'index'])->name('admin.courts');
 

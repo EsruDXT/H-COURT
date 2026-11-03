@@ -92,7 +92,8 @@
       </form>
     </div>
   </div>
-  <script>function setRole(role) {
+  <script>
+      function setRole(role) {
       // 1. Simpan nilai role ke input hidden
       document.getElementById('role-input').value = role;
 
