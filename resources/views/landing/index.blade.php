@@ -32,7 +32,7 @@
             </div>
         </section>
 
-        <section class="-mt--6 relative z-10 px-4 md:px-8">
+        <section class="-mt-6 relative z-10 px-4 md:px-8z">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 @foreach ($stats as $stat)
                     <div class="bg-white rounded-2xl border border-black/5 shadow-sm px-6 py-6 text-center md:text-left">

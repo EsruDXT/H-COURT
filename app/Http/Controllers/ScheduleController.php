@@ -20,11 +20,11 @@ class ScheduleController extends Controller
             '13:00' => ['SEN' => 'available', 'SEL' => 'booked',    'RAB' => 'available', 'KAM' => 'available', 'JUM' => 'available', 'SAB' => 'available'],
             '14:00' => ['SEN' => 'booked',    'SEL' => 'booked',    'RAB' => 'available', 'KAM' => 'booked',    'JUM' => 'available', 'SAB' => 'available'],
             '15:00' => ['SEN' => 'available', 'SEL' => 'available', 'RAB' => 'available', 'KAM' => 'available', 'JUM' => 'booked',    'SAB' => 'booked'],
-            '16:00' => ['SEN' => 'available', 'SEL' => 'available', 'RAB' => 'available', 'KAM' => 'pending',   'JUM' => 'booked',    'SAB' => 'available'],
+            '16:00' => ['SEN' => 'available', 'SEL' => 'available', 'RAB' => 'available', 'KAM' => 'pending', 'JUM' => 'booked',    'SAB' => 'available'],
             '17:00' => ['SEN' => 'booked',    'SEL' => 'available', 'RAB' => 'booked',    'KAM' => 'available', 'JUM' => 'available', 'SAB' => 'booked'],
         ];
 
-        return view('schedule.index', compact('courtTypes', 'days', 'timeSlots', 'schedule'));
+        return view ('schedule.index', compact('courtTypes', 'days', 'timeSlots', 'schedule'));
     }
 
     public function show(string $court)
