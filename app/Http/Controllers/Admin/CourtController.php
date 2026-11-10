@@ -3,63 +3,109 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\Admin\CourtRequest;
+use App\Models\Court;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
 
 class CourtController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(): View
     {
-        return view('admin.courts.index');
+        $courts = Court::query()->withCount('reservations')->orderBy('id')->get();
+
+        return view('admin.courts.index', compact('courts'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function create(): View
     {
-        //
+        return view('admin.courts.create', ['categories' => Court::CATEGORIES]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(CourtRequest $request): RedirectResponse
     {
-        //
+        $data = $request->validated();
+        $data['slug'] = $this->uniqueSlug($data['name']);
+        $data['image'] = $this->storeImage($request);
+        $data['is_active'] = true;
+
+        Court::create($data);
+
+        return redirect()->route('admin.courts.index')->with('status', 'Lapangan berhasil ditambahkan.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function edit(Court $court): View
     {
-        //
+        return view('admin.courts.edit', [
+            'court' => $court,
+            'categories' => Court::CATEGORIES,
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
+    public function update(CourtRequest $request, Court $court): RedirectResponse
     {
-        //
+        $data = $request->validated();
+        unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $this->deleteImage($court->image);
+            $data['image'] = $this->storeImage($request);
+        }
+
+        $court->update($data);
+
+        return redirect()->route('admin.courts.index')->with('status', 'Data lapangan berhasil diperbarui.');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function toggle(Court $court): RedirectResponse
     {
-        //
+        $court->update(['is_active' => ! $court->is_active]);
+
+        return back()->with('status', $court->name.($court->is_active ? ' diaktifkan.' : ' dinonaktifkan.'));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function destroy(Court $court): RedirectResponse
     {
-        //
+        if ($court->reservations()->exists()) {
+            return back()->withErrors([
+                'court' => 'Lapangan sudah memiliki riwayat reservasi dan tidak bisa dihapus. Nonaktifkan saja.',
+            ]);
+        }
+
+        $this->deleteImage($court->image);
+        $court->delete();
+
+        return redirect()->route('admin.courts.index')->with('status', 'Lapangan berhasil dihapus.');
+    }
+
+    protected function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'lapangan';
+        $slug = $base;
+        $counter = 2;
+
+        while (Court::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$counter++;
+        }
+
+        return $slug;
+    }
+
+    protected function storeImage(CourtRequest $request): ?string
+    {
+        if (! $request->hasFile('image')) {
+            return null;
+        }
+
+        return 'storage/'.$request->file('image')->store('courts', 'public');
+    }
+
+    protected function deleteImage(?string $path): void
+    {
+        if ($path !== null && str_starts_with($path, 'storage/')) {
+            Storage::disk('public')->delete(Str::after($path, 'storage/'));
+        }
     }
 }

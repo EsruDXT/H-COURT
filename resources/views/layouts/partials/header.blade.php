@@ -23,7 +23,7 @@
                 @php
                     $isActive = request()->routeIs($link['route']);
                 @endphp
-                <a href="{{ Route::has($link['route']) ? route($link['route']) : '#' }}"
+                <a href="{{ route($link['route']) }}"
                    class="px-6 py-2.5 rounded-full text-sm font-medium transition-colors
                           {{ $isActive ? 'bg-navy text-white' : 'text-gray-500 hover:text-ink' }}">
                     {{ $link['label'] }}
@@ -32,12 +32,21 @@
         </nav>
 
         {{-- Auth button --}}
-        <div class="shrink-0">
+        <div class="shrink-0 flex items-center gap-2">
             @auth
-                <a href="{{ Route::has('admin.dashboard') ? route('admin.dashboard') : '#' }}"
-                   class="inline-block bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3 rounded-full transition-colors">
-                    Dashboard
-                </a>
+                @if (auth()->user()->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}"
+                       class="inline-block bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3 rounded-full transition-colors">
+                        Dashboard
+                    </a>
+                @endif
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit"
+                            class="inline-block bg-navy text-white font-semibold text-sm px-7 py-3 rounded-full transition-colors">
+                        Keluar
+                    </button>
+                </form>
             @else
                 <a href="{{ route('login') }}"
                    class="inline-block bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-8 py-3 rounded-full transition-colors">
@@ -53,7 +62,7 @@
             @php
                 $isActive = request()->routeIs($link['route']);
             @endphp
-            <a href="{{ Route::has($link['route']) ? route($link['route']) : '#' }}"
+            <a href="{{ route($link['route']) }}"
                class="px-4 py-2 rounded-full text-xs font-medium transition-colors
                       {{ $isActive ? 'bg-navy text-white' : 'text-gray-500' }}">
                 {{ $link['label'] }}

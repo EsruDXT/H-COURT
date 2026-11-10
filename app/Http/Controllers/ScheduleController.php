@@ -2,33 +2,77 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Court;
+use App\Models\Reservation;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+
 class ScheduleController extends Controller
 {
-    public function index()
+    public function index(Request $request): View
     {
-        $courtTypes = [
-            'futsal'    => 'Futsal',
-            'basket'    => 'Basket',
-            'badminton' => 'Badminton',
-        ];
+        $courts = $this->activeCourts();
 
-        $days = ['SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+        $court = $courts->firstWhere('slug', $request->query('court')) ?? $courts->first();
 
-        $timeSlots = ['13:00', '14:00', '15:00', '16:00', '17:00'];
-
-        $schedule = [
-            '13:00' => ['SEN' => 'available', 'SEL' => 'booked',    'RAB' => 'available', 'KAM' => 'available', 'JUM' => 'available', 'SAB' => 'available'],
-            '14:00' => ['SEN' => 'booked',    'SEL' => 'booked',    'RAB' => 'available', 'KAM' => 'booked',    'JUM' => 'available', 'SAB' => 'available'],
-            '15:00' => ['SEN' => 'available', 'SEL' => 'available', 'RAB' => 'available', 'KAM' => 'available', 'JUM' => 'booked',    'SAB' => 'booked'],
-            '16:00' => ['SEN' => 'available', 'SEL' => 'available', 'RAB' => 'available', 'KAM' => 'pending', 'JUM' => 'booked',    'SAB' => 'available'],
-            '17:00' => ['SEN' => 'booked',    'SEL' => 'available', 'RAB' => 'booked',    'KAM' => 'available', 'JUM' => 'available', 'SAB' => 'booked'],
-        ];
-
-        return view ('schedule.index', compact('courtTypes', 'days', 'timeSlots', 'schedule'));
+        return view('schedule.index', $this->scheduleData($courts, $court));
     }
 
-    public function show(string $court)
+    public function show(string $court): View
     {
-        return view('schedule.show', compact('court'));
+        $courts = $this->activeCourts();
+
+        $selected = $courts->firstWhere('slug', $court) ?? abort(404);
+
+        return view('schedule.show', $this->scheduleData($courts, $selected));
+    }
+
+    /**
+     * @return Collection<int, Court>
+     */
+    protected function activeCourts(): Collection
+    {
+        return Court::query()->where('is_active', true)->orderBy('id')->get();
+    }
+
+    /**
+     * @param  Collection<int, Court>  $courts
+     * @return array<string, mixed>
+     */
+    protected function scheduleData(Collection $courts, ?Court $court): array
+    {
+        $today = CarbonImmutable::today();
+        $start = $today->isSunday() ? $today->addDay() : $today->startOfWeek();
+
+        $days = ['SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+        $dates = [];
+        $schedule = [];
+
+        foreach ($days as $index => $label) {
+            $date = $start->addDays($index);
+            $dates[$label] = $date->format('d/m');
+
+            $availability = $court ? $court->slotAvailability($date->toDateString()) : [];
+
+            foreach (Reservation::TIME_SLOTS as $slot) {
+                $schedule[$slot][$label] = $availability[$slot] ?? 'available';
+            }
+        }
+
+        $courtTypes = $courts
+            ->mapWithKeys(fn (Court $item): array => [$item->slug => Str::replaceFirst('Lapangan ', '', $item->name)])
+            ->all();
+
+        return [
+            'court' => $court,
+            'courtTypes' => $courtTypes,
+            'days' => $days,
+            'dates' => $dates,
+            'timeSlots' => Reservation::TIME_SLOTS,
+            'schedule' => $schedule,
+        ];
     }
 }

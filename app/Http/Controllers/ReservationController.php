@@ -14,41 +14,24 @@ use Illuminate\View\View;
 
 class ReservationController extends Controller
 {
-    public const TIME_SLOTS = [
-        '13:00',
-        '14:00',
-        '15:00',
-        '16:00',
-        '17:00'
-    ];
+    public const TIME_SLOTS = Reservation::TIME_SLOTS;
 
     public const PURPOSES = [
         'Latihan rutin',
         'Lomba / turnamen',
-        'Pertandingan umum'
+        'Pertandingan umum',
     ];
-
-    // ==========================================
-    // MENAMPILKAN RESERVASI MILIK USER
-    // ==========================================
 
     public function index(Request $request): View
     {
-        $user = $request->user();
-
         $reservations = Reservation::query()
             ->with('court')
-            ->where('user_id', $user->id)
+            ->where('user_id', $request->user()->id)
             ->latest()
             ->get();
 
         return view('reservation.index', compact('reservations'));
     }
-
-
-    // ==========================================
-    // FORM PEMBUATAN RESERVASI
-    // ==========================================
 
     public function create(Request $request): View
     {
@@ -59,31 +42,47 @@ class ReservationController extends Controller
 
         $days = $this->upcomingDays();
 
-        $court = $courts->firstWhere(
-            'slug',
-            $request->query('court')
-        );
+        $court = $courts->firstWhere('slug', $request->query('court'));
+        $day = $days->firstWhere('value', $request->query('date'));
 
-        $day = $days->firstWhere(
-            'value',
-            $request->query('date')
-        );
+        $slotStatuses = ($court && $day) ? $court->slotAvailability($day['value']) : [];
+        $blocked = array_keys(array_filter($slotStatuses, fn (string $s): bool => $s !== 'available'));
 
-        $bookedTimes = ($court && $day)
-            ? $court->bookedStartTimes($day['value'])
-            : [];
-
-        $requestedTime = $request->query('time');
-
-        $time = in_array($requestedTime, self::TIME_SLOTS, true)
-            && !in_array($requestedTime, $bookedTimes, true)
-            ? $requestedTime
+        $time = in_array($request->query('time'), self::TIME_SLOTS, true)
+            ? $request->query('time')
             : null;
+
+        $requestedDuration = (int) $request->query('duration');
+        $duration = ($requestedDuration >= 1 && $requestedDuration <= Reservation::MAX_DURATION)
+            ? $requestedDuration
+            : null;
+
+        $slotError = null;
+        $endTime = null;
+
+        if ($court && $day && $time && $duration) {
+            $endTime = CarbonImmutable::createFromFormat('H:i', $time)->addHours($duration)->format('H:i');
+            $needed = array_filter(self::TIME_SLOTS, fn (string $s): bool => $s >= $time && $s < $endTime);
+
+            if ($endTime > Reservation::DAY_END) {
+                $slotError = 'Durasi melewati jam operasional (maksimal sampai '.Reservation::DAY_END.').';
+            } elseif (array_intersect($needed, $blocked) !== []) {
+                $slotError = 'Ada jam pada rentang itu yang sudah terisi. Pilih jam atau durasi lain.';
+            }
+
+            if ($slotError !== null) {
+                $time = null;
+                $duration = null;
+                $endTime = null;
+            }
+        } elseif ($time !== null && in_array($time, $blocked, true)) {
+            $time = null;
+        }
 
         $step = match (true) {
             $court === null => 1,
             $day === null => 2,
-            $time === null => 3,
+            $time === null || $duration === null => 3,
             default => 4,
         };
 
@@ -94,166 +93,88 @@ class ReservationController extends Controller
             'days' => $days,
             'day' => $day,
             'timeSlots' => self::TIME_SLOTS,
-            'bookedTimes' => $bookedTimes,
+            'slotStatuses' => $slotStatuses,
+            'bookedTimes' => $blocked,
             'time' => $time,
-
-            'endTime' => $time
-                ? CarbonImmutable::createFromFormat(
-                    'H:i',
-                    $time
-                )->addHour()->format('H:i')
-                : null,
-
+            'duration' => $duration,
+            'durations' => range(1, Reservation::MAX_DURATION),
+            'slotError' => $slotError,
+            'endTime' => $endTime,
             'purposes' => self::PURPOSES,
-
             'stepLabels' => [
                 'Pilih lapangan',
                 'Pilih hari',
-                'Pilih jam',
-                'Data peminjam'
+                'Pilih jam & durasi',
+                'Data peminjam',
             ],
         ]);
     }
 
-
-    // ==========================================
-    // MENYIMPAN RESERVASI
-    // ==========================================
-
-    public function store(
-        StoreReservationRequest $request
-    ): RedirectResponse {
-
+    public function store(StoreReservationRequest $request): RedirectResponse
+    {
         $data = $request->validated();
-
-        $user = $request->user();
 
         $court = Court::query()
             ->where('slug', $data['court'])
             ->where('is_active', true)
             ->firstOrFail();
 
-        $start = CarbonImmutable::createFromFormat(
-            'H:i',
-            $data['time']
-        );
+        $end = CarbonImmutable::createFromFormat('H:i', $data['time'])
+            ->addHours((int) $data['duration'])
+            ->format('H:i');
 
         $reservation = DB::transaction(
-            function () use ($user, $data, $court, $start): ?Reservation {
-
-                $isTaken = Reservation::query()
-                    ->where('court_id', $court->id)
-                    ->whereDate(
-                        'reservation_date',
-                        $data['date']
-                    )
-                    ->where('start_time', $data['time'])
-                    ->whereIn(
-                        'status',
-                        Reservation::BLOCKING_STATUSES
-                    )
-                    ->lockForUpdate()
-                    ->exists();
-
-                if ($isTaken) {
+            function () use ($request, $data, $court, $end): ?Reservation {
+                if ($court->hasConflict($data['date'], $data['time'], $end)) {
                     return null;
                 }
 
-                return $user->reservations()->create([
-
+                return $request->user()->reservations()->create([
                     'court_id' => $court->id,
-
                     'reservation_date' => $data['date'],
-
                     'start_time' => $data['time'],
-
-                    'end_time' => $start
-                        ->addHour()
-                        ->format('H:i'),
-
+                    'end_time' => $end,
                     'borrower_name' => $data['full_name'],
-
                     'class_institution' => $data['class_institution'],
-
                     'phone_number' => $data['phone_number'],
-
                     'participant_count' => $data['participant_count'],
-
                     'purpose' => $data['purpose'],
-
                     'notes' => $data['notes'] ?? null,
-
                     'status' => Reservation::STATUS_PENDING,
-
                 ]);
             }
         );
 
         if ($reservation === null) {
-
             return back()
                 ->withInput()
-                ->withErrors([
-                    'time' => 'Slot ini baru saja terisi. Silakan pilih jam lain.'
-                ]);
+                ->withErrors(['time' => 'Jam tersebut baru saja terisi. Silakan pilih jam atau durasi lain.']);
         }
 
         return redirect()
             ->route('reservation.index')
             ->with('reservation_submitted', [
-
                 'court' => $court->name,
-
-                'date' => $reservation->reservation_date
-                    ->locale('id')
-                    ->translatedFormat('l, d F Y'),
-
+                'date' => $reservation->reservation_date->locale('id')->translatedFormat('l, d F Y'),
                 'time' => $reservation->timeRange(),
-
                 'status' => 'Menunggu Persetujuan',
-
             ]);
     }
 
-
-    // ==========================================
-    // MEMBUAT DAFTAR 6 HARI KE DEPAN
-    // ==========================================
-
     /**
-     * @return Collection<int, array{
-     *     label: string,
-     *     date: string,
-     *     value: string,
-     *     full: string
-     * }>
+     * @return Collection<int, array{label: string, date: string, value: string, full: string}>
      */
-
     protected function upcomingDays(): Collection
     {
-        return collect(range(0, 5))->map(
-            function (int $offset): array {
+        return collect(range(0, 5))->map(function (int $offset): array {
+            $date = CarbonImmutable::today()->addDays($offset)->locale('id');
 
-                $date = CarbonImmutable::today()
-                    ->addDays($offset)
-                    ->locale('id');
-
-                return [
-
-                    'label' => mb_strtoupper(
-                        $date->translatedFormat('D')
-                    ),
-
-                    'date' => $date->format('d'),
-
-                    'value' => $date->toDateString(),
-
-                    'full' => $date->translatedFormat(
-                        'l, d F Y'
-                    ),
-
-                ];
-            }
-        );
+            return [
+                'label' => mb_strtoupper($date->translatedFormat('D')),
+                'date' => $date->format('d'),
+                'value' => $date->toDateString(),
+                'full' => $date->translatedFormat('l, d F Y'),
+            ];
+        });
     }
 }
