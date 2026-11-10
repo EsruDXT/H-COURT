@@ -2,105 +2,258 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreReservationRequest;
+use App\Models\Court;
+use App\Models\Reservation;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class ReservationController extends Controller
 {
-    protected function courts(): array
-    {
-        return [
-            [
-                'slug'  => 'futsal',
-                'name'  => 'Lapangan Futsal',
-                'type'  => 'Outdoor - sintesis',
-                'image' => 'images/courts/futsal.jpg',
-            ],
-            [
-                'slug'  => 'basket',
-                'name'  => 'Lapangan Basket',
-                'type'  => 'Indoor - gedung olahraga',
-                'image' => 'images/courts/basket.jpg',
-            ],
-            [
-                'slug'  => 'badminton',
-                'name'  => 'Lapangan Badminton',
-                'type'  => 'Indoor - gedung olahraga',
-                'image' => 'images/courts/badminton.jpg',
-            ],
-        ];
-    }
+    public const TIME_SLOTS = [
+        '13:00',
+        '14:00',
+        '15:00',
+        '16:00',
+        '17:00'
+    ];
 
-    public function index()
+    public const PURPOSES = [
+        'Latihan rutin',
+        'Lomba / turnamen',
+        'Pertandingan umum'
+    ];
+
+    // ==========================================
+    // MENAMPILKAN RESERVASI MILIK USER
+    // ==========================================
+
+    public function index(Request $request): View
     {
-        $reservations = [
-            [
-                'court'  => 'Lapangan Futsal',
-                'date'   => 'Senin, 18 Agustus 2026',
-                'time'   => '15:00 - 16:00',
-                'status' => 'confirmed',
-            ],
-            [
-                'court'  => 'Lapangan Badminton',
-                'date'   => 'Jumat, 22 Agustus 2026',
-                'time'   => '16:00 - 17:00',
-                'status' => 'pending',
-            ],
-            [
-                'court'  => 'Lapangan Basket',
-                'date'   => 'Rabu, 20 Agustus 2026',
-                'time'   => '14:00 - 15:00',
-                'status' => 'rejected',
-            ],
-        ];
+        $user = $request->user();
+
+        $reservations = Reservation::query()
+            ->with('court')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
 
         return view('reservation.index', compact('reservations'));
     }
 
-    public function create()
+
+    // ==========================================
+    // FORM PEMBUATAN RESERVASI
+    // ==========================================
+
+    public function create(Request $request): View
     {
-        $courts = $this->courts();
+        $courts = Court::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get();
 
-        // Dummy 6 upcoming days for the "select schedule" step
-        $days = collect(range(0, 5))->map(function ($i) {
-            $date = now()->addDays($i);
-            return [
-                'label' => strtoupper($date->translatedFormat('D')), // MON, TUE, etc.
-                'date'  => $date->format('d'),
-                'value' => $date->toDateString(),
-                'full'  => $date->translatedFormat('l, d F Y'),
-            ];
-        });
+        $days = $this->upcomingDays();
 
-        $timeSlots = ['13:00', '14:00', '15:00', '16:00', '17:00'];
+        $court = $courts->firstWhere(
+            'slug',
+            $request->query('court')
+        );
 
-        return view('reservation.create', compact('courts', 'days', 'timeSlots'));
-    }
+        $day = $days->firstWhere(
+            'value',
+            $request->query('date')
+        );
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'court'             => 'required|string',
-            'court_label'       => 'required|string',
-            'date'              => 'required|date',
-            'time'              => 'required|string',
-            'full_name'         => 'required|string|max:100',
-            'class_institution' => 'required|string|max:100',
-            'phone_number'      => 'required|string|max:20',
-            'participant_count' => 'required|integer|min:1',
-            'purpose'           => 'required|string|max:100',
-            'notes'             => 'nullable|string|max:500',
-        ]);
+        $bookedTimes = ($court && $day)
+            ? $court->bookedStartTimes($day['value'])
+            : [];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Reservation submitted successfully.',
-            'data'    => [
-                'court'  => $validated['court_label'],
-                'date'   => Carbon::parse($validated['date'])->translatedFormat('l, d F Y'),
-                'time'   => $validated['time'] . ' - ' . Carbon::createFromFormat('H:i', $validated['time'])->addHour()->format('H:i'),
-                'status' => 'Menunggu Persetujuan',
+        $requestedTime = $request->query('time');
+
+        $time = in_array($requestedTime, self::TIME_SLOTS, true)
+            && !in_array($requestedTime, $bookedTimes, true)
+            ? $requestedTime
+            : null;
+
+        $step = match (true) {
+            $court === null => 1,
+            $day === null => 2,
+            $time === null => 3,
+            default => 4,
+        };
+
+        return view('reservation.create', [
+            'step' => $step,
+            'courts' => $courts,
+            'court' => $court,
+            'days' => $days,
+            'day' => $day,
+            'timeSlots' => self::TIME_SLOTS,
+            'bookedTimes' => $bookedTimes,
+            'time' => $time,
+
+            'endTime' => $time
+                ? CarbonImmutable::createFromFormat(
+                    'H:i',
+                    $time
+                )->addHour()->format('H:i')
+                : null,
+
+            'purposes' => self::PURPOSES,
+
+            'stepLabels' => [
+                'Pilih lapangan',
+                'Pilih hari',
+                'Pilih jam',
+                'Data peminjam'
             ],
         ]);
+    }
+
+
+    // ==========================================
+    // MENYIMPAN RESERVASI
+    // ==========================================
+
+    public function store(
+        StoreReservationRequest $request
+    ): RedirectResponse {
+
+        $data = $request->validated();
+
+        $user = $request->user();
+
+        $court = Court::query()
+            ->where('slug', $data['court'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $start = CarbonImmutable::createFromFormat(
+            'H:i',
+            $data['time']
+        );
+
+        $reservation = DB::transaction(
+            function () use ($user, $data, $court, $start): ?Reservation {
+
+                $isTaken = Reservation::query()
+                    ->where('court_id', $court->id)
+                    ->whereDate(
+                        'reservation_date',
+                        $data['date']
+                    )
+                    ->where('start_time', $data['time'])
+                    ->whereIn(
+                        'status',
+                        Reservation::BLOCKING_STATUSES
+                    )
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($isTaken) {
+                    return null;
+                }
+
+                return $user->reservations()->create([
+
+                    'court_id' => $court->id,
+
+                    'reservation_date' => $data['date'],
+
+                    'start_time' => $data['time'],
+
+                    'end_time' => $start
+                        ->addHour()
+                        ->format('H:i'),
+
+                    'borrower_name' => $data['full_name'],
+
+                    'class_institution' => $data['class_institution'],
+
+                    'phone_number' => $data['phone_number'],
+
+                    'participant_count' => $data['participant_count'],
+
+                    'purpose' => $data['purpose'],
+
+                    'notes' => $data['notes'] ?? null,
+
+                    'status' => Reservation::STATUS_PENDING,
+
+                ]);
+            }
+        );
+
+        if ($reservation === null) {
+
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'time' => 'Slot ini baru saja terisi. Silakan pilih jam lain.'
+                ]);
+        }
+
+        return redirect()
+            ->route('reservation.index')
+            ->with('reservation_submitted', [
+
+                'court' => $court->name,
+
+                'date' => $reservation->reservation_date
+                    ->locale('id')
+                    ->translatedFormat('l, d F Y'),
+
+                'time' => $reservation->timeRange(),
+
+                'status' => 'Menunggu Persetujuan',
+
+            ]);
+    }
+
+
+    // ==========================================
+    // MEMBUAT DAFTAR 6 HARI KE DEPAN
+    // ==========================================
+
+    /**
+     * @return Collection<int, array{
+     *     label: string,
+     *     date: string,
+     *     value: string,
+     *     full: string
+     * }>
+     */
+
+    protected function upcomingDays(): Collection
+    {
+        return collect(range(0, 5))->map(
+            function (int $offset): array {
+
+                $date = CarbonImmutable::today()
+                    ->addDays($offset)
+                    ->locale('id');
+
+                return [
+
+                    'label' => mb_strtoupper(
+                        $date->translatedFormat('D')
+                    ),
+
+                    'date' => $date->format('d'),
+
+                    'value' => $date->toDateString(),
+
+                    'full' => $date->translatedFormat(
+                        'l, d F Y'
+                    ),
+
+                ];
+            }
+        );
     }
 }

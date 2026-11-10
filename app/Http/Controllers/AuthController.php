@@ -6,20 +6,24 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
-    /**
-     * Tampilkan halaman login.
-     */
+    // ==========================================
+    // MENAMPILKAN HALAMAN LOGIN
+    // ==========================================
+
     public function showLogin()
     {
         return view('auth.login');
     }
 
-    /**
-     * Proses login — dipanggil oleh POST /login (form id="signInForm").
-     */
+
+    // ==========================================
+    // PROSES LOGIN
+    // ==========================================
+
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -27,77 +31,105 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        $remember = $request->boolean('remember');
+        if (
+            Auth::attempt(
+                $credentials,
+                $request->boolean('remember')
+            )
+        ) {
 
-        if (! Auth::attempt($credentials, $remember)) {
-            // Pesan ini otomatis muncul di #emailError karena Blade sudah pakai @error('email')
-            return back()
-                ->withErrors(['email' => 'Email atau kata sandi yang kamu masukkan salah.'])
-                ->onlyInput('email');
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('landing'))
+                ->with('success', 'Berhasil login. Selamat datang!');
         }
 
-        $request->session()->regenerate();
-
-        // TODO: sesuaikan tujuan redirect setelah login berhasil
-        return redirect()->intended('/dashboard');
+        return back()
+            ->withErrors([
+                'email' => 'Email atau kata sandi salah.',
+            ])
+            ->onlyInput('email');
     }
 
-    /**
-     * Tampilkan halaman register.
-     */
+
+    // ==========================================
+    // MENAMPILKAN HALAMAN REGISTER
+    // ==========================================
+
     public function showRegister()
     {
         return view('auth.register');
     }
 
-    /**
-     * Proses pendaftaran akun baru — dipanggil oleh POST /register (form id="registerForm").
-     * Nama field "kelas" / "telepon" berubah sesuai tab peran yang dipilih di register.js,
-     * jadi salah satu dari keduanya saja yang benar-benar terkirim (bukan dua-duanya).
-     */
+
+    // ==========================================
+    // PROSES REGISTER
+    // ==========================================
+
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'role' => ['required', 'in:siswa,umum,pengelola'],
-            'fullName' => ['required', 'string', 'min:3', 'max:255'],
-            'kelas' => ['nullable', 'required_if:role,siswa', 'string', 'max:100'],
-            'telepon' => ['nullable', 'required_if:role,umum,pengelola', 'string', 'max:20'],
-            'institutionName' => ['nullable', 'required_if:role,pengelola', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
-            'confirmPassword' => ['required', 'same:password'],
-            'agreeTerms' => ['accepted'],
-        ], [
-            'confirmPassword.same' => 'Konfirmasi kata sandi tidak cocok.',
-            'email.unique' => 'Email ini sudah terdaftar.',
-            'agreeTerms.accepted' => 'Kamu harus menyetujui ketentuan ini.',
+
+            'nama' => ['required', 'string', 'max:255'],
+
+            'role' => ['required', 'in:siswa,umum'],
+
+            'kelas_instansi' => ['required', 'string', 'max:255'],
+
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8),
+            ],
+
         ]);
 
         $user = User::create([
-            'name' => $validated['fullName'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+
+            'name' => $validated['nama'],
+
             'role' => $validated['role'],
-            'kelas' => $validated['kelas'] ?? null,
-            'telepon' => $validated['telepon'] ?? null,
-            'institution_name' => $validated['institutionName'] ?? null,
+
+            'kelas_instansi' => $validated['kelas_instansi'],
+
+            'email' => $validated['email'],
+
+            'password' => Hash::make($validated['password']),
+
         ]);
 
+        // Login otomatis setelah register
         Auth::login($user);
 
-        // TODO: sesuaikan tujuan redirect setelah daftar berhasil
-        return redirect('/dashboard');
+        // Perbarui session
+        $request->session()->regenerate();
+
+        // Redirect ke homepage
+        return redirect()->route('landing')
+            ->with('success', 'Akun berhasil dibuat. Selamat datang!');
     }
 
-    /**
-     * Logout.
-     */
+
+    // ==========================================
+    // LOGOUT
+    // ==========================================
+
     public function logout(Request $request)
     {
         Auth::logout();
+
         $request->session()->invalidate();
+
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('landing')
+            ->with('success', 'Kamu berhasil logout.');
+    }
+
+    public function showForgotPassword()
+    {
+        return view('auth.forgot-password');
     }
 }
