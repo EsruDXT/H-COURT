@@ -7,7 +7,6 @@ use App\Models\Reservation;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ScheduleController extends Controller
@@ -16,18 +15,32 @@ class ScheduleController extends Controller
     {
         $courts = $this->activeCourts();
 
-        $court = $courts->firstWhere('slug', $request->query('court')) ?? $courts->first();
+        $courtTypes = [
+            'futsal' => 'Futsal',
+            'basket' => 'Basket',
+            'badminton' => 'Badminton',
+        ];
 
-        return view('schedule.index', $this->scheduleData($courts, $court));
-    }
+        $selectedCategory = $request->query('category', 'futsal');
 
-    public function show(string $court): View
-    {
-        $courts = $this->activeCourts();
+        if (! array_key_exists($selectedCategory, $courtTypes)) {
+            $selectedCategory = 'futsal';
+        }
 
-        $selected = $courts->firstWhere('slug', $court) ?? abort(404);
+        // Mengambil minggu yang dipilih dari URL.
+        // Nilai negatif dikembalikan menjadi 0.
+        $weekOffset = max(0, (int) $request->query('week', 0));
 
-        return view('schedule.show', $this->scheduleData($courts, $selected));
+        $selectedCourts = $courts
+            ->where('category', $selectedCategory)
+            ->values();
+
+        return view('schedule.index', $this->scheduleData(
+            $selectedCourts,
+            $courtTypes,
+            $selectedCategory,
+            $weekOffset
+        ));
     }
 
     /**
@@ -35,44 +48,95 @@ class ScheduleController extends Controller
      */
     protected function activeCourts(): Collection
     {
-        return Court::query()->where('is_active', true)->orderBy('id')->get();
+        return Court::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 
     /**
-     * @param  Collection<int, Court>  $courts
+     * @param Collection<int, Court> $courts
+     * @param array<string, string> $courtTypes
      * @return array<string, mixed>
      */
-    protected function scheduleData(Collection $courts, ?Court $court): array
-    {
+    protected function scheduleData(
+        Collection $courts,
+        array $courtTypes,
+        string $selectedCategory,
+        int $weekOffset
+    ): array {
         $today = CarbonImmutable::today();
-        $start = $today->isSunday() ? $today->addDay() : $today->startOfWeek();
 
+        // Menentukan hari Senin sebagai awal minggu.
+        // Jika hari ini Minggu, mulai dari Senin berikutnya.
+        $start = $today->isSunday()
+            ? $today->addDay()
+            : $today->startOfWeek();
+
+        // Bergeser sesuai minggu yang dipilih.
+        $start = $start->addWeeks($weekOffset);
+
+        // Tetap mempertahankan 6 hari seperti implementasi awal.
         $days = ['SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+
         $dates = [];
         $schedule = [];
+        $courtSchedules = [];
 
         foreach ($days as $index => $label) {
             $date = $start->addDays($index);
+
             $dates[$label] = $date->format('d/m');
 
-            $availability = $court ? $court->slotAvailability($date->toDateString()) : [];
+            foreach ($courts as $court) {
+                $availability = $court->slotAvailability(
+                    $date->toDateString()
+                );
 
-            foreach (Reservation::TIME_SLOTS as $slot) {
-                $schedule[$slot][$label] = $availability[$slot] ?? 'available';
+                foreach (Reservation::TIME_SLOTS as $slot) {
+                    $courtSchedules[$court->id][$slot][$label] =
+                        $availability[$slot] ?? 'available';
+
+                    $currentStatus = $schedule[$slot][$label] ?? 'available';
+                    $newStatus = $availability[$slot] ?? 'available';
+
+                    // Prioritaskan booked, kemudian pending.
+                    $priority = [
+                        'available' => 0,
+                        'pending' => 1,
+                        'booked' => 2,
+                    ];
+
+                    if (
+                        ($priority[$newStatus] ?? 0) >
+                        ($priority[$currentStatus] ?? 0)
+                    ) {
+                        $schedule[$slot][$label] = $newStatus;
+                    } else {
+                        $schedule[$slot][$label] = $currentStatus;
+                    }
+                }
             }
         }
 
-        $courtTypes = $courts
-            ->mapWithKeys(fn (Court $item): array => [$item->slug => Str::replaceFirst('Lapangan ', '', $item->name)])
-            ->all();
+        // Label periode minggu yang sedang ditampilkan.
+        $weekLabel = $start->format('d/m/Y')
+            . ' - '
+            . $start->addDays(5)->format('d/m/Y');
 
         return [
-            'court' => $court,
+            'courts' => $courts,
             'courtTypes' => $courtTypes,
+            'selectedCategory' => $selectedCategory,
             'days' => $days,
             'dates' => $dates,
             'timeSlots' => Reservation::TIME_SLOTS,
             'schedule' => $schedule,
+            'courtSchedules' => $courtSchedules,
+
+            // Data navigasi minggu.
+            'weekOffset' => $weekOffset,
+            'weekLabel' => $weekLabel,
         ];
     }
 }

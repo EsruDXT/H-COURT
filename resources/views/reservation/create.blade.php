@@ -289,6 +289,24 @@
 
                     </div>
 
+
+                    {{-- PILIH DURASI --}}
+                    <div class="mt-6">
+                        <label class="block text-xs font-semibold text-neutral-500 uppercase mb-3">
+                            Pilih durasi reservasi
+                        </label>
+
+                        <select name="duration" required
+                            class="w-full px-4 py-3 rounded-xl border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700">
+                            @foreach ($durations as $hours)
+                                <option value="{{ $hours }}" @selected((int) request()->query('duration', 1) === $hours)>
+                                    {{ $hours }} jam
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+
                     @error('time')
                         <p class="text-sm text-red-600 mt-3">{{ $message }}</p>
                     @enderror
@@ -373,6 +391,7 @@
                             <input type="hidden" name="court" value="{{ $court->slug }}">
                             <input type="hidden" name="date" value="{{ $day['value'] }}">
                             <input type="hidden" name="time" value="{{ $time }}">
+                            <input type="hidden" name="duration" value="{{ $duration }}">
 
 
                             {{-- NAMA LENGKAP --}}

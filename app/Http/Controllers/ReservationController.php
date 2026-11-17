@@ -35,9 +35,11 @@ class ReservationController extends Controller
 
     public function create(Request $request): View
     {
+        // Mengambil semua kategori lapangan yang aktif.
         $courts = Court::query()
             ->where('is_active', true)
-            ->orderBy('id')
+            ->orderBy('category')
+            ->orderBy('name')
             ->get();
 
         $days = $this->upcomingDays();
@@ -45,14 +47,23 @@ class ReservationController extends Controller
         $court = $courts->firstWhere('slug', $request->query('court'));
         $day = $days->firstWhere('value', $request->query('date'));
 
-        $slotStatuses = ($court && $day) ? $court->slotAvailability($day['value']) : [];
-        $blocked = array_keys(array_filter($slotStatuses, fn (string $s): bool => $s !== 'available'));
+        $slotStatuses = ($court && $day)
+            ? $court->slotAvailability($day['value'])
+            : [];
+
+        $blocked = array_keys(
+            array_filter(
+                $slotStatuses,
+                fn (string $s): bool => $s !== 'available'
+            )
+        );
 
         $time = in_array($request->query('time'), self::TIME_SLOTS, true)
             ? $request->query('time')
             : null;
 
         $requestedDuration = (int) $request->query('duration');
+
         $duration = ($requestedDuration >= 1 && $requestedDuration <= Reservation::MAX_DURATION)
             ? $requestedDuration
             : null;
@@ -61,8 +72,14 @@ class ReservationController extends Controller
         $endTime = null;
 
         if ($court && $day && $time && $duration) {
-            $endTime = CarbonImmutable::createFromFormat('H:i', $time)->addHours($duration)->format('H:i');
-            $needed = array_filter(self::TIME_SLOTS, fn (string $s): bool => $s >= $time && $s < $endTime);
+            $endTime = CarbonImmutable::createFromFormat('H:i', $time)
+                ->addHours($duration)
+                ->format('H:i');
+
+            $needed = array_filter(
+                self::TIME_SLOTS,
+                fn (string $s): bool => $s >= $time && $s < $endTime
+            );
 
             if ($endTime > Reservation::DAY_END) {
                 $slotError = 'Durasi melewati jam operasional (maksimal sampai '.Reservation::DAY_END.').';
@@ -114,6 +131,7 @@ class ReservationController extends Controller
     {
         $data = $request->validated();
 
+        // Mencari lapangan berdasarkan slug tanpa membatasi kategori.
         $court = Court::query()
             ->where('slug', $data['court'])
             ->where('is_active', true)
@@ -148,14 +166,18 @@ class ReservationController extends Controller
         if ($reservation === null) {
             return back()
                 ->withInput()
-                ->withErrors(['time' => 'Jam tersebut baru saja terisi. Silakan pilih jam atau durasi lain.']);
+                ->withErrors([
+                    'time' => 'Jam tersebut baru saja terisi. Silakan pilih jam atau durasi lain.',
+                ]);
         }
 
         return redirect()
             ->route('reservation.index')
             ->with('reservation_submitted', [
                 'court' => $court->name,
-                'date' => $reservation->reservation_date->locale('id')->translatedFormat('l, d F Y'),
+                'date' => $reservation->reservation_date
+                    ->locale('id')
+                    ->translatedFormat('l, d F Y'),
                 'time' => $reservation->timeRange(),
                 'status' => 'Menunggu Persetujuan',
             ]);
