@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Reservation;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -64,13 +64,14 @@ class ReportController extends Controller
                 ->whereBetween('reservation_date', [$from, $to])
                 ->orderBy('reservation_date')
                 ->orderBy('start_time')
+                ->orderBy('id')
                 ->chunk(500, function ($reservations) use ($output): void {
                     foreach ($reservations as $reservation) {
                         fputcsv($output, [
                             $reservation->id,
-                            $reservation->borrower_name,
-                            $reservation->user?->email,
-                            $reservation->court?->name,
+                            $this->csvSafe($reservation->borrower_name),
+                            $this->csvSafe($reservation->user?->email),
+                            $this->csvSafe($reservation->court?->name),
                             $reservation->reservation_date->toDateString(),
                             $reservation->startHm(),
                             $reservation->endHm(),
@@ -101,9 +102,23 @@ class ReportController extends Controller
             : now()->toDateString();
 
         if ($from > $to) {
-            abort(422, 'Tanggal awal tidak boleh melewati tanggal akhir.');
+            throw ValidationException::withMessages([
+                'to' => 'Tanggal akhir tidak boleh sebelum tanggal awal.',
+            ]);
         }
 
         return [$from, $to];
+    }
+
+    /**
+     * Mencegah CSV injection: sel yang diawali = + - @ dibaca Excel sebagai rumus.
+     */
+    private function csvSafe(?string $value): ?string
+    {
+        if ($value !== null && preg_match('/^[=+\-@\t\r]/', $value) === 1) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

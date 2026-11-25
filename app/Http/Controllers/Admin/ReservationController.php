@@ -7,7 +7,6 @@ use App\Http\Controllers\ReservationController as PublicReservationController;
 use App\Http\Requests\Admin\UpdateReservationRequest;
 use App\Models\Court;
 use App\Models\Reservation;
-use App\Models\User;
 use App\Notifications\ReservationActivityNotification;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -190,11 +189,14 @@ class ReservationController extends Controller
         ];
 
         if (isset($messages[$status]) && $reservation->user) {
-            [$title, $message] = $messages[$status];
+            [$title, $detail] = $messages[$status];
+            $message = $detail.' ('.$reservation->court?->name.', '
+                .$reservation->reservation_date->locale('id')->translatedFormat('d F Y').', '
+                .$reservation->timeRange().')';
             $reservation->user->notify(new ReservationActivityNotification(
                 $title,
                 $message,
-                route('reservation.index'),
+                route('reservation.index', absolute: false),
                 $reservation->id,
             ));
         }

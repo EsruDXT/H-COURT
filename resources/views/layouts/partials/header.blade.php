@@ -22,7 +22,9 @@
             @auth
                 <a href="{{ route('notifications.index') }}" class="relative rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy" aria-label="Notifikasi">
                     Notifikasi
-                    @php($unreadCount = auth()->user()->unreadNotifications()->count())
+                    @php
+                        $unreadCount = auth()->user()->unreadNotifications()->count();
+                    @endphp
                     @if ($unreadCount > 0)
                         <span class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
                     @endif

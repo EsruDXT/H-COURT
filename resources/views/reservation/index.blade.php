@@ -15,7 +15,9 @@
         </div>
 
         @if (session('reservation_submitted'))
-            @php($submitted = session('reservation_submitted'))
+            @php
+                $submitted = session('reservation_submitted');
+            @endphp
             <div class="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
                 <p class="mb-1 font-semibold text-emerald-700">Reservasi berhasil diajukan!</p>
                 <p class="mb-3 text-sm text-neutral-500">Pengelola akan meninjau permintaanmu.</p>

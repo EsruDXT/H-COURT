@@ -1,0 +1,245 @@
+diff --git a/app/Http/Controllers/Admin/ReportController.php b/app/Http/Controllers/Admin/ReportController.php
+index b253938..3a92e73 100644
+--- a/app/Http/Controllers/Admin/ReportController.php
++++ b/app/Http/Controllers/Admin/ReportController.php
+@@ -6,7 +6,7 @@
+ use App\Models\Reservation;
+ use Carbon\CarbonImmutable;
+ use Illuminate\Http\Request;
+-use Illuminate\Support\Facades\DB;
++use Illuminate\Validation\ValidationException;
+ use Illuminate\View\View;
+ use Symfony\Component\HttpFoundation\StreamedResponse;
+ 
+@@ -64,13 +64,14 @@ public function export(Request $request): StreamedResponse
+                 ->whereBetween('reservation_date', [$from, $to])
+                 ->orderBy('reservation_date')
+                 ->orderBy('start_time')
++                ->orderBy('id')
+                 ->chunk(500, function ($reservations) use ($output): void {
+                     foreach ($reservations as $reservation) {
+                         fputcsv($output, [
+                             $reservation->id,
+-                            $reservation->borrower_name,
+-                            $reservation->user?->email,
+-                            $reservation->court?->name,
++                            $this->csvSafe($reservation->borrower_name),
++                            $this->csvSafe($reservation->user?->email),
++                            $this->csvSafe($reservation->court?->name),
+                             $reservation->reservation_date->toDateString(),
+                             $reservation->startHm(),
+                             $reservation->endHm(),
+@@ -101,9 +102,23 @@ private function dateRange(Request $request): array
+             : now()->toDateString();
+ 
+         if ($from > $to) {
+-            abort(422, 'Tanggal awal tidak boleh melewati tanggal akhir.');
++            throw ValidationException::withMessages([
++                'to' => 'Tanggal akhir tidak boleh sebelum tanggal awal.',
++            ]);
+         }
+ 
+         return [$from, $to];
+     }
++
++    /**
++     * Mencegah CSV injection: sel yang diawali = + - @ dibaca Excel sebagai rumus.
++     */
++    private function csvSafe(?string $value): ?string
++    {
++        if ($value !== null && preg_match('/^[=+\-@\t\r]/', $value) === 1) {
++            return "'".$value;
++        }
++
++        return $value;
++    }
+ }
+diff --git a/app/Http/Controllers/Admin/ReservationController.php b/app/Http/Controllers/Admin/ReservationController.php
+index 4705b20..5924623 100644
+--- a/app/Http/Controllers/Admin/ReservationController.php
++++ b/app/Http/Controllers/Admin/ReservationController.php
+@@ -190,11 +190,14 @@ private function notifyUserOfStatus(Reservation $reservation, string $status): v
+         ];
+ 
+         if (isset($messages[$status]) && $reservation->user) {
+-            [$title, $message] = $messages[$status];
++            [$title, $detail] = $messages[$status];
++            $message = $detail.' ('.$reservation->court?->name.', '
++                .$reservation->reservation_date->locale('id')->translatedFormat('d F Y').', '
++                .$reservation->timeRange().')';
+             $reservation->user->notify(new ReservationActivityNotification(
+                 $title,
+                 $message,
+-                route('reservation.index'),
++                route('reservation.index', absolute: false),
+                 $reservation->id,
+             ));
+         }
+diff --git a/app/Http/Controllers/NotificationController.php b/app/Http/Controllers/NotificationController.php
+index 6b223cb..4430615 100644
+--- a/app/Http/Controllers/NotificationController.php
++++ b/app/Http/Controllers/NotificationController.php
+@@ -23,12 +23,18 @@ public function markRead(Request $request, string $notification): RedirectRespon
+         $item = $request->user()->notifications()->whereKey($notification)->firstOrFail();
+         $item->markAsRead();
+ 
++        $url = $item->data['url'] ?? null;
++
++        if ($request->boolean('open') && is_string($url) && str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
++            return redirect($url);
++        }
++
+         return redirect()->route('notifications.index')->with('status', 'Notifikasi ditandai sudah dibaca.');
+     }
+ 
+     public function markAllRead(Request $request): RedirectResponse
+     {
+-        $request->user()->unreadNotifications()->update(['read_at' => now()]);
++        $request->user()->unreadNotifications()->update(['read_at' => now(), 'updated_at' => now()]);
+ 
+         return back()->with('status', 'Semua notifikasi ditandai sudah dibaca.');
+     }
+diff --git a/app/Http/Controllers/ReservationController.php b/app/Http/Controllers/ReservationController.php
+index 21bcc77..8e7ab36 100644
+--- a/app/Http/Controllers/ReservationController.php
++++ b/app/Http/Controllers/ReservationController.php
+@@ -159,7 +159,7 @@ public function cancel(Request $request, Reservation $reservation): RedirectResp
+     protected function notifyAdmins(Reservation $reservation, string $title, string $message): void
+     {
+         User::query()->where('role', User::ROLE_ADMIN)->get()->each(
+-            fn (User $admin) => $admin->notify(new ReservationActivityNotification($title, $message, route('admin.dashboard'), $reservation->id))
++            fn (User $admin) => $admin->notify(new ReservationActivityNotification($title, $message, route('admin.dashboard', absolute: false), $reservation->id))
+         );
+     }
+ 
+diff --git a/resources/views/admin/reports/index.blade.php b/resources/views/admin/reports/index.blade.php
+index 96fed3c..5d86e25 100644
+--- a/resources/views/admin/reports/index.blade.php
++++ b/resources/views/admin/reports/index.blade.php
+@@ -40,10 +40,10 @@
+ <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+     <section class="rounded-xl border border-stone-200 bg-white p-6">
+         <h3 class="mb-1 text-lg font-semibold text-gray-900">Penggunaan per lapangan</h3>
+-        <p class="mb-5 text-xs text-gray-500">Jumlah reservasi dan yang berstatus diterima dalam periode terpilih.</p>
++        <p class="mb-5 text-xs text-gray-500">Bar menunjukkan persentase reservasi yang diterima dari seluruh pengajuan lapangan tersebut.</p>
+         <div class="space-y-5">
+             @forelse ($courtStats as $item)
+-                @php $width = $stats['total'] > 0 ? (int) round(($item->confirmed / $stats['total']) * 100) : 0; @endphp
++                @php $width = $item->total > 0 ? (int) round(($item->confirmed / $item->total) * 100) : 0; @endphp
+                 <div>
+                     <div class="mb-1 flex justify-between gap-3 text-sm">
+                         <span class="font-medium text-gray-800">{{ $item->court?->name ?? 'Lapangan dihapus' }}</span>
+diff --git a/resources/views/notifications/index.blade.php b/resources/views/notifications/index.blade.php
+index 8976309..0b45ea1 100644
+--- a/resources/views/notifications/index.blade.php
++++ b/resources/views/notifications/index.blade.php
+@@ -29,10 +29,19 @@
+                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                         <div>
+                             <div class="flex items-center gap-2">
+-                                @if (!empty($notification->data['url']))
++                                @if (!empty($notification->data['url']) && $notification->read_at)
+                                     <a href="{{ $notification->data['url'] }}" class="font-semibold text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:text-amber-800">
+                                         {{ $notification->data['title'] ?? 'Notifikasi H-COURT' }}
+                                     </a>
++                                @elseif (!empty($notification->data['url']))
++                                    <form method="POST" action="{{ route('notifications.read', $notification->id) }}">
++                                        @csrf
++                                        @method('PATCH')
++                                        <input type="hidden" name="open" value="1">
++                                        <button class="text-left font-semibold text-neutral-900 underline decoration-neutral-300 underline-offset-4 hover:text-amber-800">
++                                            {{ $notification->data['title'] ?? 'Notifikasi H-COURT' }}
++                                        </button>
++                                    </form>
+                                 @else
+                                     <h2 class="font-semibold text-neutral-900">{{ $notification->data['title'] ?? 'Notifikasi H-COURT' }}</h2>
+                                 @endif
+diff --git a/tests/Feature/AdvancedFeaturesTest.php b/tests/Feature/AdvancedFeaturesTest.php
+index 220786b..760c8e5 100644
+--- a/tests/Feature/AdvancedFeaturesTest.php
++++ b/tests/Feature/AdvancedFeaturesTest.php
+@@ -110,3 +110,84 @@
+         ->assertOk()
+         ->assertSee('Laporan Statistik');
+ });
++
++it('forbids non-admin users from the report page and export', function () {
++    $user = User::factory()->create();
++
++    $this->actingAs($user)->get(route('admin.reports.index'))->assertForbidden();
++    $this->actingAs($user)->get(route('admin.reports.export'))->assertForbidden();
++});
++
++it('rejects a report range where the start date is after the end date', function () {
++    $admin = User::factory()->admin()->create();
++
++    $this->actingAs($admin)
++        ->from(route('admin.reports.index'))
++        ->get(route('admin.reports.index', ['from' => '2026-11-20', 'to' => '2026-11-01']))
++        ->assertSessionHasErrors('to');
++});
++
++it('exports reservations as csv and neutralises spreadsheet formulas', function () {
++    $admin = User::factory()->admin()->create();
++    Reservation::factory()->create([
++        'borrower_name' => '=HYPERLINK("http://evil.test")',
++        'reservation_date' => '2026-11-19',
++    ]);
++
++    $response = $this->actingAs($admin)
++        ->get(route('admin.reports.export', ['from' => '2026-11-01', 'to' => '2026-11-30']))
++        ->assertOk()
++        ->assertDownload('laporan-reservasi-2026-11-01-2026-11-30.csv');
++
++    $content = $response->streamedContent();
++
++    expect($content)->toContain("'=HYPERLINK")
++        ->and($content)->not->toContain(',=HYPERLINK');
++});
++
++it('lists only the notifications of the logged-in user', function () {
++    $user = User::factory()->create();
++    $other = User::factory()->create();
++    $user->notify(new ReservationActivityNotification('Judul milikku', 'Pesan', '/reservation'));
++    $other->notify(new ReservationActivityNotification('Judul orang lain', 'Pesan', '/reservation'));
++
++    $this->actingAs($user)->get(route('notifications.index'))
++        ->assertOk()
++        ->assertSee('Judul milikku')
++        ->assertDontSee('Judul orang lain');
++});
++
++it('marks a notification as read and can open its target page', function () {
++    $user = User::factory()->create();
++    $user->notify(new ReservationActivityNotification('Judul', 'Pesan', '/reservation'));
++    $notification = $user->notifications()->first();
++
++    $this->actingAs($user)
++        ->patch(route('notifications.read', $notification->id), ['open' => 1])
++        ->assertRedirect('/reservation');
++
++    expect($notification->fresh()->read_at)->not->toBeNull();
++});
++
++it('does not let a user mark another user\'s notification as read', function () {
++    $owner = User::factory()->create();
++    $intruder = User::factory()->create();
++    $owner->notify(new ReservationActivityNotification('Judul', 'Pesan', '/reservation'));
++    $notification = $owner->notifications()->first();
++
++    $this->actingAs($intruder)
++        ->patch(route('notifications.read', $notification->id))
++        ->assertNotFound();
++
++    expect($notification->fresh()->read_at)->toBeNull();
++});
++
++it('marks all notifications as read', function () {
++    $user = User::factory()->create();
++    $user->notify(new ReservationActivityNotification('A', 'Pesan', '/reservation'));
++    $user->notify(new ReservationActivityNotification('B', 'Pesan', '/reservation'));
++
++    $this->actingAs($user)->post(route('notifications.read-all'))->assertSessionHas('status');
++
++    expect($user->unreadNotifications()->count())->toBe(0);
++});

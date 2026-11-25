@@ -40,10 +40,10 @@
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
     <section class="rounded-xl border border-stone-200 bg-white p-6">
         <h3 class="mb-1 text-lg font-semibold text-gray-900">Penggunaan per lapangan</h3>
-        <p class="mb-5 text-xs text-gray-500">Jumlah reservasi dan yang berstatus diterima dalam periode terpilih.</p>
+        <p class="mb-5 text-xs text-gray-500">Bar menunjukkan persentase reservasi yang diterima dari seluruh pengajuan lapangan tersebut.</p>
         <div class="space-y-5">
             @forelse ($courtStats as $item)
-                @php $width = $stats['total'] > 0 ? (int) round(($item->confirmed / $stats['total']) * 100) : 0; @endphp
+                @php $width = $item->total > 0 ? (int) round(($item->confirmed / $item->total) * 100) : 0; @endphp
                 <div>
                     <div class="mb-1 flex justify-between gap-3 text-sm">
                         <span class="font-medium text-gray-800">{{ $item->court?->name ?? 'Lapangan dihapus' }}</span>

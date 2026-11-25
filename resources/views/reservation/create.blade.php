@@ -233,7 +233,9 @@
             @if ($step === 3)
 
                 <form method="GET" action="{{ route('reservation.create') }}"
-                    class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6">
+                    class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6"
+                    data-reservation-time-form
+                    data-closing-time="{{ $closingTime ?? '' }}">
 
                     <input type="hidden" name="court" value="{{ $court->slug }}">
                     <input type="hidden" name="date" value="{{ $day['value'] }}">
@@ -305,6 +307,18 @@
                             @endforeach
                         </select>
                     </div>
+
+                    <p data-duration-warning role="alert"
+                        class="hidden mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        Peringatan: durasi yang dipilih melewati jam tutup lapangan pukul {{ $closingTime ?? '' }}.
+                        Kurangi durasi atau pilih jam mulai lain.
+                    </p>
+
+                    @if ($slotError)
+                        <p role="alert" class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                            {{ $slotError }}
+                        </p>
+                    @endif
 
 
                     @error('time')
@@ -549,3 +563,40 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('[data-reservation-time-form]');
+
+            if (!form) {
+                return;
+            }
+
+            const durationSelect = form.querySelector('select[name="duration"]');
+            const warning = form.querySelector('[data-duration-warning]');
+            const closingTime = form.dataset.closingTime;
+
+            if (!durationSelect || !warning || !closingTime) {
+                return;
+            }
+
+            const toMinutes = (time) => {
+                const [hours, minutes] = time.split(':').map(Number);
+
+                return (hours * 60) + minutes;
+            };
+
+            const updateWarning = () => {
+                const selectedTime = form.querySelector('input[name="time"]:checked');
+                const exceedsClosingTime = selectedTime !== null
+                    && toMinutes(selectedTime.value) + (Number(durationSelect.value) * 60) > toMinutes(closingTime);
+
+                warning.classList.toggle('hidden', ! exceedsClosingTime);
+            };
+
+            form.addEventListener('change', updateWarning);
+            updateWarning();
+        });
+    </script>
+@endpush

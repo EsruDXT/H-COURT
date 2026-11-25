@@ -76,7 +76,8 @@ class ReservationController extends Controller
             'step' => $step, 'courts' => $courts, 'court' => $court, 'days' => $days, 'day' => $day,
             'timeSlots' => $timeSlots, 'slotStatuses' => $slotStatuses, 'bookedTimes' => $blocked,
             'time' => $time, 'duration' => $duration, 'durations' => range(1, Reservation::MAX_DURATION),
-            'slotError' => $slotError, 'endTime' => $endTime, 'purposes' => self::PURPOSES,
+            'slotError' => $slotError, 'endTime' => $endTime, 'closingTime' => $window['closes_at'] ?? null,
+            'purposes' => self::PURPOSES,
             'stepLabels' => ['Pilih lapangan', 'Pilih hari', 'Pilih jam & durasi', 'Data peminjam'],
         ]);
     }
@@ -159,7 +160,7 @@ class ReservationController extends Controller
     protected function notifyAdmins(Reservation $reservation, string $title, string $message): void
     {
         User::query()->where('role', User::ROLE_ADMIN)->get()->each(
-            fn (User $admin) => $admin->notify(new ReservationActivityNotification($title, $message, route('admin.dashboard'), $reservation->id))
+            fn (User $admin) => $admin->notify(new ReservationActivityNotification($title, $message, route('admin.dashboard', absolute: false), $reservation->id))
         );
     }
 

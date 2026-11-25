@@ -23,12 +23,18 @@ class NotificationController extends Controller
         $item = $request->user()->notifications()->whereKey($notification)->firstOrFail();
         $item->markAsRead();
 
+        $url = $item->data['url'] ?? null;
+
+        if ($request->boolean('open') && is_string($url) && str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
+            return redirect($url);
+        }
+
         return redirect()->route('notifications.index')->with('status', 'Notifikasi ditandai sudah dibaca.');
     }
 
     public function markAllRead(Request $request): RedirectResponse
     {
-        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+        $request->user()->unreadNotifications()->update(['read_at' => now(), 'updated_at' => now()]);
 
         return back()->with('status', 'Semua notifikasi ditandai sudah dibaca.');
     }
