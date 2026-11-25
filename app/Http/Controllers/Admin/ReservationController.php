@@ -80,9 +80,14 @@ class ReservationController extends Controller
             return back()->withErrors(['status' => 'Tidak bisa diterima: jadwal bentrok dengan reservasi lain.']);
         }
 
-        $reservation->update(['status' => Reservation::STATUS_CONFIRMED]);
+        $reservation->update([
+            'status' => Reservation::STATUS_CONFIRMED,
+            'reviewed_at' => now(),
+        ]);
 
-        return back()->with('status', 'Reservasi '.$reservation->borrower_name.' diterima.');
+        
+
+        return back()->with('status', 'Reservasi ' . $reservation->borrower_name . ' diterima.');
     }
 
     public function reject(Reservation $reservation): RedirectResponse
@@ -93,6 +98,6 @@ class ReservationController extends Controller
 
         $reservation->update(['status' => Reservation::STATUS_REJECTED]);
 
-        return back()->with('status', 'Reservasi '.$reservation->borrower_name.' ditolak.');
+        return back()->with('status', 'Reservasi ' . $reservation->borrower_name . ' ditolak.');
     }
 }

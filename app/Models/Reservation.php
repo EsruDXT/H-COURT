@@ -31,25 +31,28 @@ class Reservation extends Model
     public const MAX_DURATION = 3;
 
     protected $fillable = [
-        'user_id',
-        'court_id',
-        'reservation_date',
-        'start_time',
-        'end_time',
-        'borrower_name',
-        'class_institution',
-        'phone_number',
-        'participant_count',
-        'purpose',
-        'notes',
-        'status',
-    ];
+    'user_id',
+    'court_id',
+    'reservation_date',
+    'start_time',
+    'end_time',
+    'borrower_name',
+    'class_institution',
+    'phone_number',
+    'participant_count',
+    'purpose',
+    'notes',
+    'status',
+    'reviewed_at',
+];
+
 
     protected function casts(): array
     {
         return [
             'reservation_date' => 'date',
             'participant_count' => 'integer',
+            'reviewed_at' => 'datetime',
         ];
     }
 
