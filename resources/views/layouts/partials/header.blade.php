@@ -1,16 +1,11 @@
-<header class="max-w-7xl mx-auto px-6 pt-6">
+<header class="mx-auto max-w-7xl px-6 pt-6">
     <div class="flex items-center justify-between gap-4">
-
-        {{-- Logo --}}
         <a href="{{ route('landing') }}" class="shrink-0 leading-none">
-            <span class="block font-serif font-extrabold text-2xl md:text-3xl text-navy tracking-tight">H-COURT</span>
-            <span class="block text-[10px] md:text-xs font-semibold tracking-widest text-navy/80 mt-0.5">
-                RESERVASI LAPANGAN SEKOLAH
-            </span>
+            <span class="block font-serif text-2xl font-extrabold tracking-tight text-navy md:text-3xl">H-COURT</span>
+            <span class="mt-0.5 block text-[10px] font-semibold tracking-widest text-navy/80 md:text-xs">RESERVASI LAPANGAN SEKOLAH</span>
         </a>
 
-        {{-- Nav pill --}}
-        <nav class="hidden md:flex items-center bg-white rounded-full p-1.5 shadow-sm">
+        <nav class="hidden items-center rounded-full bg-white p-1.5 shadow-sm md:flex">
             @php
                 $navLinks = [
                     ['label' => 'Beranda', 'route' => 'landing'],
@@ -18,55 +13,36 @@
                     ['label' => 'Reservasi', 'route' => 'reservation.index'],
                 ];
             @endphp
-
             @foreach ($navLinks as $link)
-                @php
-                    $isActive = request()->routeIs($link['route']);
-                @endphp
-                <a href="{{ route($link['route']) }}"
-                   class="px-6 py-2.5 rounded-full text-sm font-medium transition-colors
-                          {{ $isActive ? 'bg-navy text-white' : 'text-gray-500 hover:text-ink' }}">
-                    {{ $link['label'] }}
-                </a>
+                <a href="{{ route($link['route']) }}" class="rounded-full px-6 py-2.5 text-sm font-medium transition-colors {{ request()->routeIs($link['route']) ? 'bg-navy text-white' : 'text-gray-500 hover:text-ink' }}">{{ $link['label'] }}</a>
             @endforeach
         </nav>
 
-        {{-- Auth button --}}
-        <div class="shrink-0 flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2">
             @auth
+                <a href="{{ route('notifications.index') }}" class="relative rounded-full border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy" aria-label="Notifikasi">
+                    Notifikasi
+                    @php($unreadCount = auth()->user()->unreadNotifications()->count())
+                    @if ($unreadCount > 0)
+                        <span class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] text-white">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                    @endif
+                </a>
                 @if (auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}"
-                       class="inline-block bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-7 py-3 rounded-full transition-colors">
-                        Dashboard
-                    </a>
+                    <a href="{{ route('admin.dashboard') }}" class="rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-dark">Dashboard</a>
                 @endif
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit"
-                            class="inline-block bg-navy text-white font-semibold text-sm px-7 py-3 rounded-full transition-colors">
-                        Keluar
-                    </button>
+                    <button type="submit" class="rounded-full bg-navy px-5 py-3 text-sm font-semibold text-white">Keluar</button>
                 </form>
             @else
-                <a href="{{ route('login') }}"
-                   class="inline-block bg-brand hover:bg-brand-dark text-white font-semibold text-sm px-8 py-3 rounded-full transition-colors">
-                    Masuk
-                </a>
+                <a href="{{ route('login') }}" class="rounded-full bg-brand px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-dark">Masuk</a>
             @endauth
         </div>
     </div>
 
-    {{-- Mobile nav --}}
-    <nav class="md:hidden flex items-center justify-center gap-1 bg-white rounded-full p-1.5 shadow-sm mt-4">
+    <nav class="mt-4 flex items-center justify-center gap-1 rounded-full bg-white p-1.5 shadow-sm md:hidden">
         @foreach ($navLinks as $link)
-            @php
-                $isActive = request()->routeIs($link['route']);
-            @endphp
-            <a href="{{ route($link['route']) }}"
-               class="px-4 py-2 rounded-full text-xs font-medium transition-colors
-                      {{ $isActive ? 'bg-navy text-white' : 'text-gray-500' }}">
-                {{ $link['label'] }}
-            </a>
+            <a href="{{ route($link['route']) }}" class="rounded-full px-4 py-2 text-xs font-medium {{ request()->routeIs($link['route']) ? 'bg-navy text-white' : 'text-gray-500' }}">{{ $link['label'] }}</a>
         @endforeach
     </nav>
 </header>

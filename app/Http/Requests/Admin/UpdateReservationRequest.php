@@ -17,74 +17,67 @@ class UpdateReservationRequest extends FormRequest
         return $this->user()?->isAdmin() === true;
     }
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
     public function rules(): array
     {
         return [
             'court_id' => ['required', Rule::exists(Court::class, 'id')],
             'reservation_date' => ['required', 'date'],
-            'start_time' => ['required', Rule::in(Reservation::TIME_SLOTS)],
+            'start_time' => ['required', 'date_format:H:i'],
             'duration' => ['required', 'integer', 'between:1,'.Reservation::MAX_DURATION],
             'purpose' => ['required', Rule::in(ReservationController::PURPOSES)],
             'status' => ['required', Rule::in([
-                Reservation::STATUS_PENDING,
-                Reservation::STATUS_CONFIRMED,
-                Reservation::STATUS_REJECTED,
-                Reservation::STATUS_CANCELLED,
+                Reservation::STATUS_PENDING, Reservation::STATUS_CONFIRMED,
+                Reservation::STATUS_REJECTED, Reservation::STATUS_CANCELLED,
             ])],
         ];
     }
 
-    /**
-     * @return array<int, callable>
-     */
     public function after(): array
     {
-        return [
-            function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty()) {
-                    return;
-                }
+        return [function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty() || ! in_array($this->input('status'), Reservation::BLOCKING_STATUSES, true)) {
+                return;
+            }
 
-                $end = CarbonImmutable::createFromFormat('H:i', $this->input('start_time'))
-                    ->addHours((int) $this->input('duration'))
-                    ->format('H:i');
+            $court = Court::find($this->input('court_id'));
+            if (! $court) {
+                return;
+            }
 
-                if ($end > Reservation::DAY_END) {
-                    $validator->errors()->add('duration', 'Durasi melewati jam operasional (maksimal sampai '.Reservation::DAY_END.').');
-                }
-            },
-        ];
+            $date = $this->input('reservation_date');
+            $window = $court->operatingWindowForDate($date);
+            if ($window === null) {
+                $validator->errors()->add('reservation_date', 'Lapangan tidak beroperasi pada tanggal tersebut.');
+                return;
+            }
+
+            $start = $this->input('start_time');
+            if (! in_array($start, $court->timeSlotsForDate($date), true)) {
+                $validator->errors()->add('start_time', 'Jam mulai berada di luar jadwal operasional lapangan.');
+                return;
+            }
+
+            $end = CarbonImmutable::createFromFormat('H:i', $start)->addHours((int) $this->input('duration'))->format('H:i');
+            if ($end > $window['closes_at']) {
+                $validator->errors()->add('duration', 'Durasi melewati jam tutup lapangan ('.$window['closes_at'].').');
+            }
+        }];
     }
 
-    /**
-     * @return array<string, string>
-     */
     public function attributes(): array
     {
         return [
-            'court_id' => 'lapangan',
-            'reservation_date' => 'tanggal',
-            'start_time' => 'jam mulai',
-            'duration' => 'durasi',
-            'purpose' => 'keperluan',
-            'status' => 'status',
+            'court_id' => 'lapangan', 'reservation_date' => 'tanggal', 'start_time' => 'jam mulai',
+            'duration' => 'durasi', 'purpose' => 'keperluan', 'status' => 'status',
         ];
     }
 
-    /**
-     * @return array<string, string>
-     */
     public function messages(): array
     {
         return [
-            'required' => ':attribute wajib diisi.',
-            'in' => ':attribute yang dipilih tidak valid.',
-            'exists' => ':attribute yang dipilih tidak valid.',
-            'date' => ':attribute tidak valid.',
-            'integer' => ':attribute harus berupa angka.',
+            'required' => ':attribute wajib diisi.', 'in' => ':attribute yang dipilih tidak valid.',
+            'exists' => ':attribute yang dipilih tidak valid.', 'date' => ':attribute tidak valid.',
+            'date_format' => ':attribute harus berformat JJ:MM.', 'integer' => ':attribute harus berupa angka.',
             'between' => ':attribute harus antara :min dan :max jam.',
         ];
     }

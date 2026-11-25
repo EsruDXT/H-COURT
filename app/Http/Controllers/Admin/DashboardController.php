@@ -13,39 +13,33 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status');
+        $allowedStatuses = [
+            Reservation::STATUS_PENDING,
+            Reservation::STATUS_CONFIRMED,
+            Reservation::STATUS_REJECTED,
+            Reservation::STATUS_CANCELLED,
+        ];
 
-        if (!in_array($status, [Reservation::STATUS_PENDING, Reservation::STATUS_CONFIRMED, Reservation::STATUS_REJECTED], true)) {
+        if (! in_array($status, $allowedStatuses, true)) {
             $status = null;
         }
 
         $reservations = Reservation::query()
             ->with(['court', 'user'])
-            ->when($status, fn($query) => $query->where('status', $status))
+            ->when($status, fn ($query) => $query->where('status', $status))
             ->latest()
             ->paginate(10)
             ->withQueryString();
 
-        $today = today()->toDateString();
-
         $stats = [
-            // Reservasi yang masih menunggu persetujuan.
-            'pending' => Reservation::where(
-                'status',
-                Reservation::STATUS_PENDING
-            )->count(),
-
-            // Reservasi yang sudah diterima dan tanggalnya hari ini.
+            'pending' => Reservation::where('status', Reservation::STATUS_PENDING)->count(),
+            // Menghitung waktu admin menyetujui, bukan tanggal penggunaan lapangan.
             'confirmed_today' => Reservation::where('status', Reservation::STATUS_CONFIRMED)
                 ->whereDate('reviewed_at', now()->toDateString())
                 ->count(),
-
-            // Semua reservasi pada bulan berjalan.
-            'this_month' => Reservation::whereBetween('reservation_date', [
-                now()->startOfMonth()->toDateString(),
-                now()->endOfMonth()->toDateString(),
-            ])->count(),
-
-            // Jumlah lapangan yang aktif.
+            'this_month' => Reservation::whereIn('status', Reservation::BLOCKING_STATUSES)
+                ->whereBetween('reservation_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                ->count(),
             'active_courts' => Court::where('is_active', true)->count(),
         ];
 
