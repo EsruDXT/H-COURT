@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,34 +16,18 @@ class Reservation extends Model
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_CANCELLED = 'cancelled';
 
-    /** Status yang membuat jadwal tidak bisa dipesan orang lain. */
-    public const BLOCKING_STATUSES = [
-        self::STATUS_PENDING,
-        self::STATUS_CONFIRMED,
-    ];
+    public const BLOCKING_STATUSES = [self::STATUS_PENDING, self::STATUS_CONFIRMED];
 
-    /** Jam mulai yang bisa dipilih (slot per 1 jam). */
+    /** Slot satu jam dipertahankan sebagai fallback kompatibilitas. Slot aktual dihitung dari Court. */
     public const TIME_SLOTS = ['13:00', '14:00', '15:00', '16:00', '17:00'];
-
-    /** Batas jam selesai reservasi. */
     public const DAY_END = '18:00';
-
-    /** Durasi maksimal (jam) per reservasi. */
     public const MAX_DURATION = 3;
 
     protected $fillable = [
-        'user_id',
-        'court_id',
-        'reservation_date',
-        'start_time',
-        'end_time',
-        'borrower_name',
-        'class_institution',
-        'phone_number',
-        'participant_count',
-        'purpose',
-        'notes',
-        'status',
+        'user_id', 'court_id', 'reservation_date', 'start_time', 'end_time',
+        'borrower_name', 'class_institution', 'phone_number', 'participant_count',
+        'purpose', 'notes', 'status', 'reviewed_at', 'reviewed_by',
+        'cancelled_at', 'cancelled_by',
     ];
 
     protected function casts(): array
@@ -50,6 +35,8 @@ class Reservation extends Model
         return [
             'reservation_date' => 'date',
             'participant_count' => 'integer',
+            'reviewed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -61,6 +48,16 @@ class Reservation extends Model
     public function court(): BelongsTo
     {
         return $this->belongsTo(Court::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function startHm(): string
@@ -83,10 +80,20 @@ class Reservation extends Model
         return (int) max(1, round((strtotime($this->endHm()) - strtotime($this->startHm())) / 3600));
     }
 
-    /** Apakah reservasi ini menutupi slot jam tertentu (format H:i). */
     public function coversSlot(string $slot): bool
     {
         return $this->startHm() <= $slot && $slot < $this->endHm();
+    }
+
+    public function canBeCancelledByUser(): bool
+    {
+        if (! in_array($this->status, self::BLOCKING_STATUSES, true)) {
+            return false;
+        }
+
+        $startsAt = CarbonImmutable::parse($this->reservation_date->toDateString().' '.$this->startHm());
+
+        return now()->lt($startsAt);
     }
 
     public function statusLabel(): string
@@ -100,9 +107,6 @@ class Reservation extends Model
         };
     }
 
-    /**
-     * Jumlah pasangan reservasi aktif yang saling tumpang tindih (mulai hari ini).
-     */
     public static function conflictCount(): int
     {
         $count = 0;
@@ -111,13 +115,14 @@ class Reservation extends Model
             ->whereIn('status', self::BLOCKING_STATUSES)
             ->whereDate('reservation_date', '>=', now()->toDateString())
             ->get()
-            ->groupBy(fn (self $r): string => $r->court_id.'|'.$r->reservation_date->toDateString())
+            ->groupBy(fn (self $reservation): string => $reservation->court_id.'|'.$reservation->reservation_date->toDateString())
             ->each(function ($group) use (&$count): void {
-                $list = $group->values();
+                $items = $group->values();
 
-                for ($i = 1; $i < $list->count(); $i++) {
+                for ($i = 1; $i < $items->count(); $i++) {
                     for ($j = 0; $j < $i; $j++) {
-                        if ($list[$i]->startHm() < $list[$j]->endHm() && $list[$i]->endHm() > $list[$j]->startHm()) {
+                        if ($items[$i]->startHm() < $items[$j]->endHm()
+                            && $items[$i]->endHm() > $items[$j]->startHm()) {
                             $count++;
                         }
                     }

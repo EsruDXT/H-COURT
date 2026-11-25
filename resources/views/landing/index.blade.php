@@ -77,7 +77,7 @@
                                 @endforeach
                             </div>
 
-                            <a href="{{ route('schedule.show', $court['slug']) }}"
+                            <a href="{{ route('schedule.index', ['category' => $court['category']]) }}"
                                class="block text-center border border-ink/80 text-ink font-medium text-sm mt-5 py-3 rounded-lg hover:bg-ink hover:text-white transition-colors">
                                 Lihat jadwal lengkap
                             </a>

@@ -1,0 +1,25 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('court_closures', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('court_id')->constrained()->cascadeOnDelete();
+            $table->date('closure_date');
+            $table->string('reason', 200)->nullable();
+            $table->timestamps();
+            $table->unique(['court_id', 'closure_date']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('court_closures');
+    }
+};

@@ -13,8 +13,14 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status');
+        $allowedStatuses = [
+            Reservation::STATUS_PENDING,
+            Reservation::STATUS_CONFIRMED,
+            Reservation::STATUS_REJECTED,
+            Reservation::STATUS_CANCELLED,
+        ];
 
-        if (! in_array($status, [Reservation::STATUS_PENDING, Reservation::STATUS_CONFIRMED, Reservation::STATUS_REJECTED], true)) {
+        if (! in_array($status, $allowedStatuses, true)) {
             $status = null;
         }
 
@@ -27,13 +33,13 @@ class DashboardController extends Controller
 
         $stats = [
             'pending' => Reservation::where('status', Reservation::STATUS_PENDING)->count(),
+            // Menghitung waktu admin menyetujui, bukan tanggal penggunaan lapangan.
             'confirmed_today' => Reservation::where('status', Reservation::STATUS_CONFIRMED)
-                ->whereDate('reservation_date', now()->toDateString())
+                ->whereDate('reviewed_at', now()->toDateString())
                 ->count(),
-            'this_month' => Reservation::whereBetween('reservation_date', [
-                now()->startOfMonth()->toDateString(),
-                now()->endOfMonth()->toDateString(),
-            ])->count(),
+            'this_month' => Reservation::whereIn('status', Reservation::BLOCKING_STATUSES)
+                ->whereBetween('reservation_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                ->count(),
             'active_courts' => Court::where('is_active', true)->count(),
         ];
 

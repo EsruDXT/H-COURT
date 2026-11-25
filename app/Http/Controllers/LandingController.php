@@ -31,6 +31,7 @@ class LandingController extends Controller
 
             $courts[] = [
                 'slug' => $court->slug,
+                'category' => $court->category,
                 'nama' => $court->name,
                 'lokasi' => $court->location,
                 'gambar' => $court->imageUrl(),

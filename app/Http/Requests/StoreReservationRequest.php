@@ -14,18 +14,15 @@ class StoreReservationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
     public function rules(): array
     {
         return [
             'court' => ['required', Rule::exists(Court::class, 'slug')->where('is_active', true)],
             'date' => ['required', 'date', 'after_or_equal:today', 'before_or_equal:'.now()->addDays(5)->toDateString()],
-            'time' => ['required', Rule::in(Reservation::TIME_SLOTS)],
+            'time' => ['required', 'date_format:H:i'],
             'duration' => ['required', 'integer', 'between:1,'.Reservation::MAX_DURATION],
             'full_name' => ['required', 'string', 'max:100'],
             'class_institution' => ['required', 'string', 'max:100'],
@@ -36,63 +33,58 @@ class StoreReservationRequest extends FormRequest
         ];
     }
 
-    /**
-     * @return array<int, callable>
-     */
     public function after(): array
     {
-        return [
-            function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty()) {
-                    return;
-                }
+        return [function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
 
-                $end = CarbonImmutable::createFromFormat('H:i', $this->input('time'))
-                    ->addHours((int) $this->input('duration'))
-                    ->format('H:i');
+            $court = Court::query()->where('slug', $this->input('court'))->where('is_active', true)->first();
+            if (! $court) {
+                $validator->errors()->add('court', 'Lapangan tidak ditemukan atau sedang nonaktif.');
+                return;
+            }
 
-                if ($end > Reservation::DAY_END) {
-                    $validator->errors()->add('duration', 'Durasi melewati jam operasional (maksimal sampai '.Reservation::DAY_END.').');
-                } elseif ($this->input('date') === now()->toDateString() && $this->input('time') <= now()->format('H:i')) {
-                    $validator->errors()->add('time', 'Jam yang dipilih sudah lewat.');
-                }
-            },
-        ];
+            $date = $this->input('date');
+            $time = $this->input('time');
+            $window = $court->operatingWindowForDate($date);
+            if ($window === null) {
+                $validator->errors()->add('date', 'Lapangan tutup pada tanggal yang dipilih.');
+                return;
+            }
+
+            if (! in_array($time, $court->timeSlotsForDate($date), true)) {
+                $validator->errors()->add('time', 'Jam tersebut berada di luar jadwal operasional lapangan.');
+                return;
+            }
+
+            $end = CarbonImmutable::createFromFormat('H:i', $time)->addHours((int) $this->input('duration'))->format('H:i');
+            if ($end > $window['closes_at']) {
+                $validator->errors()->add('duration', 'Durasi melewati jam tutup lapangan ('.$window['closes_at'].').');
+            } elseif ($date === now()->toDateString() && $time <= now()->format('H:i')) {
+                $validator->errors()->add('time', 'Jam yang dipilih sudah lewat.');
+            }
+        }];
     }
 
-    /**
-     * @return array<string, string>
-     */
     public function attributes(): array
     {
         return [
-            'court' => 'lapangan',
-            'date' => 'tanggal',
-            'time' => 'jam',
-            'duration' => 'durasi',
-            'full_name' => 'nama lengkap',
-            'class_institution' => 'kelas / instansi',
-            'phone_number' => 'nomor HP',
-            'participant_count' => 'jumlah peserta',
-            'purpose' => 'keperluan',
-            'notes' => 'catatan',
+            'court' => 'lapangan', 'date' => 'tanggal', 'time' => 'jam', 'duration' => 'durasi',
+            'full_name' => 'nama lengkap', 'class_institution' => 'kelas / instansi',
+            'phone_number' => 'nomor HP', 'participant_count' => 'jumlah peserta',
+            'purpose' => 'keperluan', 'notes' => 'catatan',
         ];
     }
 
-    /**
-     * @return array<string, string>
-     */
     public function messages(): array
     {
         return [
-            'required' => ':attribute wajib diisi.',
-            'max' => ':attribute maksimal :max karakter.',
-            'min' => ':attribute minimal :min.',
-            'between' => ':attribute harus antara :min dan :max jam.',
-            'integer' => ':attribute harus berupa angka.',
-            'date' => ':attribute tidak valid.',
-            'exists' => ':attribute yang dipilih tidak valid.',
-            'in' => ':attribute yang dipilih tidak valid.',
+            'required' => ':attribute wajib diisi.', 'max' => ':attribute maksimal :max karakter.',
+            'min' => ':attribute minimal :min.', 'between' => ':attribute harus antara :min dan :max jam.',
+            'integer' => ':attribute harus berupa angka.', 'date' => ':attribute tidak valid.',
+            'exists' => ':attribute yang dipilih tidak valid.', 'in' => ':attribute yang dipilih tidak valid.',
             'after_or_equal' => ':attribute tidak boleh sebelum hari ini.',
             'before_or_equal' => ':attribute maksimal 6 hari ke depan.',
         ];
